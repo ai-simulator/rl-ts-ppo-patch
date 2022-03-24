@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { DataType, NdArray } from 'ndarray';
 import { Shape, Space } from '.';
 import * as random from 'rl-ts/lib/utils/random';

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { expect } from 'chai';
 import { Spaces } from '../../src/';
 import * as np from '../../src/utils/np';

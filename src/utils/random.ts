@@ -28,7 +28,7 @@ export const randomVal = () => {
 export const random = (shape: number[], low = 0, high = 1) => {
   const vals = nj.zeros(shape);
   for (let i = 0; i < vals.size; i++) {
-    vals.selection.data[vals.selection.offset + i] = rng() * (high - low) + low;
+    (vals.selection.data as number[])[vals.selection.offset + i] = rng() * (high - low) + low;
   }
   return vals;
 };

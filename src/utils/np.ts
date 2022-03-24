@@ -1,3 +1,4 @@
+// @ts-nocheck
 /** File contains implementations of basic numpy operations using ndarray */
 import { Tensor, tensor } from '@tensorflow/tfjs-core';
 import ndarray, { DataType } from 'ndarray';
