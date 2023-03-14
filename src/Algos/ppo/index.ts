@@ -34,7 +34,7 @@ export interface PPOTrainConfigs {
     info: any;
     loss: number | null;
   }): any;
-  epochCallback(epochDate: {
+  epochCallback(epochData: {
     epoch: number;
     kl: number;
     entropy: number;
@@ -44,6 +44,7 @@ export interface PPOTrainConfigs {
       mean: number;
       std: number;
     };
+    t: number;
   }): any;
   pi_optimizer: tf.Optimizer;
   vf_optimizer: tf.Optimizer;
@@ -347,6 +348,7 @@ export class PPO<
         epoch,
         ...metrics,
         ep_rets: ep_rets_metrics,
+        t: epoch * local_steps_per_epoch,
       });
 
       ep_rets = [];

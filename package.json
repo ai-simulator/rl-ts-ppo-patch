@@ -5,6 +5,7 @@
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "scripts": {
+    "ppo": "node -r ts-node/register -r tsconfig-paths/register 'examples/ppo/run.ts'",
     "test:sh": "sh ./tests/test.sh",
     "test:ppo": "mocha -r ts-node/register -r tsconfig-paths/register --recursive 'tests/Algos/ppo.spec.ts'",
     "test:report": "nyc --reporter=html mocha tests/**/*.spec.ts",
