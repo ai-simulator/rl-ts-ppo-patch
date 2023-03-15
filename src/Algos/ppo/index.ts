@@ -65,6 +65,7 @@ export interface PPOTrainConfigs {
   steps_per_epoch: number;
   /** maximum length of each trajectory collected */
   max_ep_len: number;
+  batch_size: number;
   seed: number;
   name: string;
 }
@@ -127,6 +128,7 @@ export class PPO<
       ckptFreq: 1000,
       steps_per_epoch: 10000,
       max_ep_len: 1000,
+      batch_size: 64,
       epochs: 50,
       train_v_iters: 80,
       gamma: 0.99,
@@ -208,19 +210,37 @@ export class PPO<
 
     const update = async () => {
       const data = await buffer.get();
-      const loss_pi_old = compute_loss_pi(data).loss_pi;
-      const loss_vf_old = compute_loss_vf(data);
+      const totalSize = configs.steps_per_epoch;
+      const batchSize = configs.batch_size;
+
       let kl = 0;
       let entropy = 0;
       let clip_frac = 0;
       let loss_pi_new = 0;
       let loss_vf_new = 0;
+      let delta_pi_loss = 0;
+      let delta_vf_loss = 0;
+      let trained_pi_iters = 0;
 
-      let trained_pi_iters = configs.train_pi_iters;
+      let batchStartIndex = 0;
+      let batch = 0;
+      let maxBatch = Math.floor(totalSize / batchSize);
 
-      for (let i = 0; i < configs.train_pi_iters; i++) {
+      while (batch < maxBatch) {
+        const batchData = {
+          obs: data.obs.slice(batchStartIndex, batchSize),
+          act: data.act.slice(batchStartIndex, batchSize),
+          adv: data.adv.slice(batchStartIndex, batchSize),
+          ret: data.ret.slice(batchStartIndex, batchSize),
+          logp: data.logp.slice(batchStartIndex, batchSize),
+        };
+        batchStartIndex += batchSize;
+
+        const loss_pi_old = compute_loss_pi(batchData).loss_pi;
+        const loss_vf_old = compute_loss_vf(batchData);
+
         const pi_grads = pi_optimizer.computeGradients(() => {
-          const { loss_pi, pi_info } = compute_loss_pi(data);
+          const { loss_pi, pi_info } = compute_loss_pi(batchData);
           kl = pi_info.approx_kl;
           entropy = pi_info.entropy;
           clip_frac = pi_info.clip_frac;
@@ -229,32 +249,30 @@ export class PPO<
         });
         if (kl > 1.5 * target_kl) {
           log.warn(
-            `${configs.name} | Early stopping at step ${i + 1}/${
-              configs.train_pi_iters
-            } of optimizing policy due to reaching max kl`
+            `${configs.name} | Early stopping at batch ${batch}/${Math.floor(
+              totalSize / batchSize
+            )} of optimizing policy due to reaching max kl`
           );
-          trained_pi_iters = i + 1;
+          trained_pi_iters = batch + 1;
           break;
         }
 
         pi_optimizer.applyGradients(pi_grads.grads);
-        if (i === configs.train_pi_iters - 1) {
-          loss_pi_new = pi_grads.value.arraySync();
-        }
-      }
+        loss_pi_new = pi_grads.value.arraySync();
 
-      for (let i = 0; i < configs.train_v_iters; i++) {
         const vf_grads = vf_optimizer.computeGradients(() => {
-          const loss_v = compute_loss_vf(data);
+          const loss_v = compute_loss_vf(batchData);
           return loss_v as tf.Scalar;
         });
         vf_optimizer.applyGradients(vf_grads.grads);
-        if (i === configs.train_pi_iters - 1) {
-          loss_vf_new = vf_grads.value.arraySync();
-        }
+        loss_vf_new = vf_grads.value.arraySync();
+        delta_pi_loss = loss_pi_new - (loss_pi_old.arraySync() as number);
+        delta_vf_loss = loss_vf_new - (loss_vf_old.arraySync() as number);
+        trained_pi_iters++;
+        batch++;
       }
-      let delta_pi_loss = loss_pi_new - (loss_pi_old.arraySync() as number);
-      let delta_vf_loss = loss_vf_new - (loss_vf_old.arraySync() as number);
+
+      // TODO: compute average metrics across minibatches
       const metrics = {
         kl,
         entropy,
@@ -265,6 +283,7 @@ export class PPO<
         loss_pi: loss_pi_new,
         loss_vf: loss_vf_new,
       };
+
       return metrics;
     };
 
