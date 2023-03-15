@@ -18,3 +18,7 @@ saves
 # for macs
 .DS_Store
 
+.vscode/
+venv/
+logs/
+old logs/
