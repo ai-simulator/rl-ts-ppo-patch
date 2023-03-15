@@ -63,6 +63,7 @@ export interface PPOTrainConfigs {
   train_v_iters: number;
   train_pi_iters: number;
   steps_per_epoch: number;
+  n_epochs: number;
   /** maximum length of each trajectory collected */
   max_ep_len: number;
   batch_size: number;
@@ -127,6 +128,7 @@ export class PPO<
       pi_optimizer: tf.train.adam(3e-4),
       ckptFreq: 1000,
       steps_per_epoch: 10000,
+      n_epochs: 10,
       max_ep_len: 1000,
       batch_size: 64,
       epochs: 50,
@@ -218,50 +220,56 @@ export class PPO<
       let clip_frac = 0;
       let trained_pi_iters = 0;
 
-      let batchStartIndex = 0;
-      let batch = 0;
-      let maxBatch = Math.floor(totalSize / batchSize);
-
       let loss_pi_old = compute_loss_pi(data).loss_pi.arraySync() as number;
       let loss_vf_old = compute_loss_vf(data).arraySync() as number;
 
-      while (batch < maxBatch) {
-        const batchData = {
-          obs: data.obs.slice(batchStartIndex, batchSize),
-          act: data.act.slice(batchStartIndex, batchSize),
-          adv: data.adv.slice(batchStartIndex, batchSize),
-          ret: data.ret.slice(batchStartIndex, batchSize),
-          logp: data.logp.slice(batchStartIndex, batchSize),
-        };
-        batchStartIndex += batchSize;
+      let continueTraining = true;
 
-        const pi_grads = pi_optimizer.computeGradients(() => {
-          const { loss_pi, pi_info } = compute_loss_pi(batchData);
-          kl = pi_info.approx_kl;
-          entropy = pi_info.entropy;
-          clip_frac = pi_info.clip_frac;
+      for (let epoch = 0; epoch < configs.n_epochs; epoch++) {
+        let batchStartIndex = 0;
+        let batch = 0;
+        let maxBatch = Math.floor(totalSize / batchSize);
+        while (batch < maxBatch) {
+          const batchData = {
+            obs: data.obs.slice(batchStartIndex, batchSize),
+            act: data.act.slice(batchStartIndex, batchSize),
+            adv: data.adv.slice(batchStartIndex, batchSize),
+            ret: data.ret.slice(batchStartIndex, batchSize),
+            logp: data.logp.slice(batchStartIndex, batchSize),
+          };
+          batchStartIndex += batchSize;
 
-          return loss_pi as tf.Scalar;
-        });
-        if (kl > 1.5 * target_kl) {
-          log.warn(
-            `${configs.name} | Early stopping at batch ${batch}/${Math.floor(
-              totalSize / batchSize
-            )} of optimizing policy due to reaching max kl`
-          );
-          trained_pi_iters = batch + 1;
+          const pi_grads = pi_optimizer.computeGradients(() => {
+            const { loss_pi, pi_info } = compute_loss_pi(batchData);
+            kl = pi_info.approx_kl;
+            entropy = pi_info.entropy;
+            clip_frac = pi_info.clip_frac;
+
+            return loss_pi as tf.Scalar;
+          });
+          if (kl > 1.5 * target_kl) {
+            log.warn(
+              `${configs.name} | Early stopping at batch ${batch}/${Math.floor(
+                totalSize / batchSize
+              )} of optimizing policy due to reaching max kl`
+            );
+            continueTraining = false;
+            break;
+          }
+
+          pi_optimizer.applyGradients(pi_grads.grads);
+
+          const vf_grads = vf_optimizer.computeGradients(() => {
+            const loss_v = compute_loss_vf(batchData);
+            return loss_v as tf.Scalar;
+          });
+          vf_optimizer.applyGradients(vf_grads.grads);
+          batch++;
+        }
+        trained_pi_iters++;
+        if (!continueTraining) {
           break;
         }
-
-        pi_optimizer.applyGradients(pi_grads.grads);
-
-        const vf_grads = vf_optimizer.computeGradients(() => {
-          const loss_v = compute_loss_vf(batchData);
-          return loss_v as tf.Scalar;
-        });
-        vf_optimizer.applyGradients(vf_grads.grads);
-        trained_pi_iters++;
-        batch++;
       }
 
       let loss_pi = compute_loss_pi(data).loss_pi.arraySync() as number;
