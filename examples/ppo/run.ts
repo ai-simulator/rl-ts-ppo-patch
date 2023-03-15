@@ -3,7 +3,7 @@ import { CartPole } from '../../src/Environments/examples/Cartpole';
 import * as tf from '@tensorflow/tfjs-node';
 import * as random from '../../src/utils/random';
 
-const RUN = `9-iters-10-alpha-1e4`;
+const RUN = `10-iters-10-alpha-3e4-lam-0.95`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
@@ -20,8 +20,9 @@ const main = async () => {
     },
   });
   await ppo.train({
-    vf_optimizer: tf.train.adam(1e-4),
-    pi_optimizer: tf.train.adam(1e-4),
+    vf_optimizer: tf.train.adam(3e-4),
+    pi_optimizer: tf.train.adam(3e-4),
+    lam: 0.95,
     steps_per_epoch: 1000,
     epochs: 500,
     train_pi_iters: 10,
