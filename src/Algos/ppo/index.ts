@@ -216,15 +216,14 @@ export class PPO<
       let kl = 0;
       let entropy = 0;
       let clip_frac = 0;
-      let loss_pi_new = 0;
-      let loss_vf_new = 0;
-      let delta_pi_loss = 0;
-      let delta_vf_loss = 0;
       let trained_pi_iters = 0;
 
       let batchStartIndex = 0;
       let batch = 0;
       let maxBatch = Math.floor(totalSize / batchSize);
+
+      let loss_pi_old = compute_loss_pi(data).loss_pi.arraySync() as number;
+      let loss_vf_old = compute_loss_vf(data).arraySync() as number;
 
       while (batch < maxBatch) {
         const batchData = {
@@ -235,9 +234,6 @@ export class PPO<
           logp: data.logp.slice(batchStartIndex, batchSize),
         };
         batchStartIndex += batchSize;
-
-        const loss_pi_old = compute_loss_pi(batchData).loss_pi;
-        const loss_vf_old = compute_loss_vf(batchData);
 
         const pi_grads = pi_optimizer.computeGradients(() => {
           const { loss_pi, pi_info } = compute_loss_pi(batchData);
@@ -258,30 +254,28 @@ export class PPO<
         }
 
         pi_optimizer.applyGradients(pi_grads.grads);
-        loss_pi_new = pi_grads.value.arraySync();
 
         const vf_grads = vf_optimizer.computeGradients(() => {
           const loss_v = compute_loss_vf(batchData);
           return loss_v as tf.Scalar;
         });
         vf_optimizer.applyGradients(vf_grads.grads);
-        loss_vf_new = vf_grads.value.arraySync();
-        delta_pi_loss = loss_pi_new - (loss_pi_old.arraySync() as number);
-        delta_vf_loss = loss_vf_new - (loss_vf_old.arraySync() as number);
         trained_pi_iters++;
         batch++;
       }
 
-      // TODO: compute average metrics across minibatches
+      let loss_pi = compute_loss_pi(data).loss_pi.arraySync() as number;
+      let loss_vf = compute_loss_vf(data).arraySync() as number;
+
       const metrics = {
         kl,
         entropy,
-        delta_pi_loss,
-        delta_vf_loss,
         clip_frac,
         trained_pi_iters,
-        loss_pi: loss_pi_new,
-        loss_vf: loss_vf_new,
+        loss_pi,
+        loss_vf,
+        delta_pi_loss: loss_pi - loss_pi_old,
+        delta_vf_loss: loss_vf - loss_vf_old,
       };
 
       return metrics;
