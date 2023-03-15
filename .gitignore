@@ -21,3 +21,4 @@ saves
 .vscode/
 venv/
 logs/
+old logs/

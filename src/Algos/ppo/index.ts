@@ -40,6 +40,8 @@ export interface PPOTrainConfigs {
     entropy: number;
     delta_pi_loss: number;
     delta_vf_loss: number;
+    loss_pi: number;
+    loss_vf: number;
     ep_rets: {
       mean: number;
       std: number;
@@ -276,7 +278,16 @@ export class PPO<
       let delta_vf_loss = loss_vf_new - (loss_vf_old.arraySync() as number);
       delta_pi_loss = await ct.avgNumber(delta_pi_loss);
       delta_vf_loss = await ct.avgNumber(delta_vf_loss);
-      const metrics = { kl, entropy, delta_pi_loss, delta_vf_loss, clip_frac, trained_pi_iters };
+      const metrics = {
+        kl,
+        entropy,
+        delta_pi_loss,
+        delta_vf_loss,
+        clip_frac,
+        trained_pi_iters,
+        loss_pi: loss_pi_new,
+        loss_vf: loss_vf_new,
+      };
       return metrics;
     };
 
