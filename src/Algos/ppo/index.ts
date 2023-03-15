@@ -7,8 +7,7 @@ import { PPOBuffer, PPOBufferComputations } from 'rl-ts/lib/Algos/ppo/buffer';
 import { DeepPartial } from 'rl-ts/lib/utils/types';
 import { deepMerge } from 'rl-ts/lib/utils/deep';
 import * as np from 'rl-ts/lib/utils/np';
-import * as ct from 'rl-ts/lib/utils/clusterTools';
-import { NdArray } from 'numjs';
+import nj, { NdArray } from 'numjs';
 import { ActorCritic } from 'rl-ts/lib/Models/ac';
 import pino from 'pino';
 const log = pino({
@@ -147,7 +146,6 @@ export class PPO<
     const { clip_ratio, vf_optimizer, pi_optimizer, target_kl } = configs;
 
     // TODO do some seeding things
-    configs.seed += 99999 * ct.id();
     random.seed(configs.seed);
     // TODO: seed tensorflow if possible
 
@@ -155,16 +153,7 @@ export class PPO<
     const obs_dim = env.observationSpace.shape;
     const act_dim = env.actionSpace.shape;
 
-    let local_steps_per_epoch = configs.steps_per_epoch / ct.numProcs();
-    if (Math.ceil(local_steps_per_epoch) !== local_steps_per_epoch) {
-      configs.steps_per_epoch = Math.ceil(local_steps_per_epoch) * ct.numProcs();
-      log.warn(
-        `${configs.name} | Changing steps per epoch to ${
-          configs.steps_per_epoch
-        } as there are ${ct.numProcs()} processes running`
-      );
-      local_steps_per_epoch = configs.steps_per_epoch / ct.numProcs();
-    }
+    let local_steps_per_epoch = configs.steps_per_epoch;
 
     const buffer = new PPOBuffer({
       gamma: configs.gamma,
@@ -173,10 +162,6 @@ export class PPO<
       obsDim: obs_dim,
       size: local_steps_per_epoch,
     });
-
-    if (ct.id() === 0) {
-      log.info(configs, `${configs.name} | Beginning training with configs`);
-    }
 
     type pi_info = {
       approx_kl: number;
@@ -242,7 +227,6 @@ export class PPO<
 
           return loss_pi as tf.Scalar;
         });
-        kl = await ct.avgNumber(kl);
         if (kl > 1.5 * target_kl) {
           log.warn(
             `${configs.name} | Early stopping at step ${i + 1}/${
@@ -252,7 +236,6 @@ export class PPO<
           trained_pi_iters = i + 1;
           break;
         }
-        await ct.averageGradients(pi_grads.grads);
 
         pi_optimizer.applyGradients(pi_grads.grads);
         if (i === configs.train_pi_iters - 1) {
@@ -260,15 +243,11 @@ export class PPO<
         }
       }
 
-      clip_frac = await ct.avgNumber(clip_frac);
-      entropy = await ct.avgNumber(entropy);
-
       for (let i = 0; i < configs.train_v_iters; i++) {
         const vf_grads = vf_optimizer.computeGradients(() => {
           const loss_v = compute_loss_vf(data);
           return loss_v as tf.Scalar;
         });
-        await ct.averageGradients(vf_grads.grads);
         vf_optimizer.applyGradients(vf_grads.grads);
         if (i === configs.train_pi_iters - 1) {
           loss_vf_new = vf_grads.value.arraySync();
@@ -276,8 +255,6 @@ export class PPO<
       }
       let delta_pi_loss = loss_pi_new - (loss_pi_old.arraySync() as number);
       let delta_vf_loss = loss_vf_new - (loss_vf_old.arraySync() as number);
-      delta_pi_loss = await ct.avgNumber(delta_pi_loss);
-      delta_vf_loss = await ct.avgNumber(delta_vf_loss);
       const metrics = {
         kl,
         entropy,
@@ -343,18 +320,21 @@ export class PPO<
 
       // update actor critic
       const metrics = await update();
-      const ep_rets_metrics = await ct.statisticsScalar(np.tensorLikeToTensor(ep_rets));
+      const ep_rets_metrics = {
+        min: nj.min(ep_rets),
+        max: nj.max(ep_rets),
+        mean: nj.mean(ep_rets),
+        std: nj.std(ep_rets),
+      };
 
-      if (ct.id() === 0) {
-        const msg = `${configs.name} | Epoch ${epoch} metrics: `;
-        log.info(
-          {
-            ...metrics,
-            ep_rets: ep_rets_metrics,
-          },
-          msg
-        );
-      }
+      const msg = `${configs.name} | Epoch ${epoch} metrics: `;
+      log.info(
+        {
+          ...metrics,
+          ep_rets: ep_rets_metrics,
+        },
+        msg
+      );
       await configs.epochCallback({
         epoch,
         ...metrics,
