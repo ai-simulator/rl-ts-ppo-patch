@@ -17,6 +17,7 @@
 - [x] 33 wrap with tf.tidy
 - [x] 34 fix memeory leak
 - [x] 35 add back kl max
+- [x] 36 remove kl max
 - [] fix vf loss high
 - [] fix unstable results
 

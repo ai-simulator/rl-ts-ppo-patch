@@ -3,7 +3,7 @@ import { CartPole } from '../../src/Environments/examples/Cartpole';
 import * as tf from '@tensorflow/tfjs-node';
 import * as random from '../../src/utils/random';
 
-const RUN = `35-batch-64-a-3e4|3e4-lam-0.95-step-2048-epoch-250-n-10-ret-td-lambda-combine-optimizer`;
+const RUN = `36-batch-64-a-3e4|3e4-lam-0.95-step-2048-epoch-250-n-10-ret-td-lambda-combine-optimizer`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 

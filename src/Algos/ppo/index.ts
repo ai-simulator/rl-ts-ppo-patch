@@ -282,18 +282,18 @@ export class PPO<
                 return loss_pi.add(loss_v.mul(configs.vf_coef)) as tf.Scalar;
               });
             });
-            if (kls[kls.length - 1] > 1.5 * target_kl) {
-              // log.warn(
-              //   `${configs.name} | Epoch ${epoch} | Reaching max kl ${kls[kls.length - 1]} / ${1.5 * target_kl}`
-              // );
-              log.warn(
-                `${configs.name} | Early stopping at epoch ${epoch} batch ${batch}/${Math.floor(
-                  totalSize / batchSize
-                )} of optimizing policy due to reaching max kl`
-              );
-              continueTraining = false;
-              break;
-            }
+            // if (kls[kls.length - 1] > 1.5 * target_kl) {
+            //   // log.warn(
+            //   //   `${configs.name} | Epoch ${epoch} | Reaching max kl ${kls[kls.length - 1]} / ${1.5 * target_kl}`
+            //   // );
+            //   log.warn(
+            //     `${configs.name} | Early stopping at epoch ${epoch} batch ${batch}/${Math.floor(
+            //       totalSize / batchSize
+            //     )} of optimizing policy due to reaching max kl`
+            //   );
+            //   continueTraining = false;
+            //   break;
+            // }
 
             // console.log(
             //   'TCL ~ grads:',
