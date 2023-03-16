@@ -286,13 +286,13 @@ export class PPO<
               // log.warn(
               //   `${configs.name} | Epoch ${epoch} | Reaching max kl ${kls[kls.length - 1]} / ${1.5 * target_kl}`
               // );
-              // log.warn(
-              //   `${configs.name} | Early stopping at epoch ${epoch} batch ${batch}/${Math.floor(
-              //     totalSize / batchSize
-              //   )} of optimizing policy due to reaching max kl`
-              // );
-              // continueTraining = false;
-              // break;
+              log.warn(
+                `${configs.name} | Early stopping at epoch ${epoch} batch ${batch}/${Math.floor(
+                  totalSize / batchSize
+                )} of optimizing policy due to reaching max kl`
+              );
+              continueTraining = false;
+              break;
             }
 
             // console.log(
@@ -406,7 +406,7 @@ export class PPO<
         },
         msg
       );
-      console.log('numTensors', tf.memory().numTensors);
+      // console.log('numTensors', tf.memory().numTensors);
       await configs.iterationCallback({
         iteration,
         ...metrics,
