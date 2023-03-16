@@ -1,6 +1,7 @@
 import * as tf from '@tensorflow/tfjs';
 import { SymbolicTensor } from '@tensorflow/tfjs';
 import { ActivationIdentifier } from '@tensorflow/tfjs-layers/dist/keras_format/activation_config';
+import { readFileSync } from 'fs';
 import { Box, Discrete, Space } from 'rl-ts/lib/Spaces';
 import { Distribution } from 'rl-ts/lib/utils/Distributions';
 import { Normal } from 'rl-ts/lib/utils/Distributions/normal';
@@ -60,6 +61,8 @@ export abstract class ActorCritic<Observation extends tf.Tensor> {
     v: tf.Tensor;
   };
   abstract act(obs: Observation): tf.Tensor;
+  abstract save(path: string): Promise<void>;
+  abstract load(path: string): Promise<void>;
 }
 
 export abstract class ActorBase<Observation extends tf.Tensor> extends Actor<Observation> {
@@ -132,8 +135,8 @@ export class MLPCritic extends Critic<tf.Tensor> {
 }
 
 export class MLPActorCritic extends ActorCritic<tf.Tensor> {
-  public pi: Actor<tf.Tensor>;
-  public v: Critic<tf.Tensor>;
+  public pi: MLPGaussianActor;
+  public v: MLPCritic;
   constructor(
     public observationSpace: Space<any>,
     public actionSpace: Space<any>,
@@ -165,5 +168,23 @@ export class MLPActorCritic extends ActorCritic<tf.Tensor> {
   }
   act(obs: tf.Tensor) {
     return this.step(obs).a;
+  }
+  async save(path: string) {
+    await this.pi.mu_net.save(`file://${path}-pi`);
+    await this.v.v_net.save(`file://${path}-v`);
+  }
+
+  async load(path: string) {
+    const piFsPath = `${path}-pi/model.json`;
+    const piContent = JSON.parse(readFileSync(piFsPath).toString());
+    console.log('load pi model:', piContent);
+    const mu_net = await tf.loadLayersModel(`file://${path}-pi/model.json`);
+    this.pi.mu_net = mu_net;
+
+    const vfFsPath = `${path}-v/model.json`;
+    const vfFsContent = JSON.parse(readFileSync(vfFsPath).toString());
+    console.log('load vf model:', vfFsContent);
+    const v_net = await tf.loadLayersModel(`file://${path}-v/model.json`);
+    this.v.v_net = v_net;
   }
 }

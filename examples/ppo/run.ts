@@ -7,6 +7,9 @@ const RUN = `43-batch-64`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
+const modelPath = `./models/${RUN}`;
+const savePath = modelPath;
+
 const main = async () => {
   random.seed(0);
   const makeEnv = () => {
@@ -30,6 +33,7 @@ const main = async () => {
     batch_size: 64,
     vf_coef: 0.5,
     target_kl: 0.03,
+    savePath,
     iterationCallback(epochData) {
       summaryWriter.scalar('reward', epochData.ep_rets.mean, epochData.t);
       // summaryWriter.scalar('delta_pi_loss', epochData.delta_pi_loss, epochData.t);

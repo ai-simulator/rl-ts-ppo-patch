@@ -11,6 +11,7 @@ import nj, { NdArray } from 'numjs';
 import { ActorCritic } from 'rl-ts/lib/Models/ac';
 import pino from 'pino';
 import { ct } from '../..';
+import { readFileSync } from 'fs';
 const log = pino({
   prettyPrint: {
     colorize: true,
@@ -147,6 +148,16 @@ export class PPO<
     };
     configs = deepMerge(configs, trainConfigs);
     log.level = configs.verbosity;
+
+    // try to load model
+    if (configs.savePath) {
+      try {
+        await this.ac.load(configs.savePath);
+      } catch (error) {
+        console.log(error);
+        console.log(`failed to load model from ${configs.savePath}`);
+      }
+    }
 
     const { clip_ratio, optimizer, target_kl } = configs;
 
@@ -392,7 +403,15 @@ export class PPO<
         }
       });
 
-      // TODO save model
+      // save model
+      if (ep_rets.every((ret) => ret === ep_rets[0])) {
+        log.warn(`${configs.name} | Early stopping at iteration ${iteration} due to all episode returns are the same`);
+        if (configs.savePath) {
+          console.log('saving model to', configs.savePath);
+          await this.ac.save(configs.savePath);
+        }
+        break;
+      }
 
       // update actor critic
       const metrics = await update();
