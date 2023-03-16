@@ -38,8 +38,8 @@ export interface PPOTrainConfigs {
     iteration: number;
     kl: number;
     entropy: number;
-    delta_pi_loss: number;
-    delta_vf_loss: number;
+    // delta_pi_loss: number;
+    // delta_vf_loss: number;
     loss_pi: number;
     loss_vf: number;
     ep_rets: {
@@ -224,6 +224,7 @@ export class PPO<
         const predict = this.ac.v.apply(obs).flatten();
         // if (data.ret.size === 64) {
         //   console.log('TCL ~ ret:', ret);
+        //   console.log('TCL ~ obs:', obs.arraySync());
         //   console.log('TCL ~ ret:', ret.arraySync());
         //   console.log('TCL ~ predict:', predict.arraySync());
         //   console.log('TCL ~ predict.sub(ret).pow(2):', predict.sub(ret).pow(2));
@@ -244,8 +245,11 @@ export class PPO<
         let clip_frac = 0;
         let trained_pi_iters = 0;
 
-        let loss_pi_old = compute_loss_pi(data, 0).loss_pi.arraySync() as number;
-        let loss_vf_old = compute_loss_vf(data).arraySync() as number;
+        // let loss_pi_old = compute_loss_pi(data, 0).loss_pi.arraySync() as number;
+        // let loss_vf_old = compute_loss_vf(data).arraySync() as number;
+
+        let loss_pi_ = 0;
+        let loss_vf_ = 0;
 
         let continueTraining = true;
 
@@ -268,20 +272,20 @@ export class PPO<
               mean: batchData.adv.mean(),
               std: nj.std(batchData.adv.arraySync()),
             };
-            batchData.adv = batchData.adv.sub(stats.mean).div(stats.std);
+            batchData.adv = batchData.adv.sub(stats.mean).div(stats.std + 1e-8);
 
             batchStartIndex += batchSize;
 
-            const grads = tf.tidy(() => {
-              return optimizer.computeGradients(() => {
-                const { loss_pi, pi_info } = compute_loss_pi(batchData, epoch);
-                kls.push(pi_info.approx_kl);
-                entropy = pi_info.entropy;
-                clip_frac = pi_info.clip_frac;
+            const grads = optimizer.computeGradients(() => {
+              const { loss_pi, pi_info } = compute_loss_pi(batchData, epoch);
+              kls.push(pi_info.approx_kl);
+              entropy = pi_info.entropy;
+              clip_frac = pi_info.clip_frac;
 
-                const loss_v = compute_loss_vf(batchData);
-                return loss_pi.add(loss_v.mul(configs.vf_coef)) as tf.Scalar;
-              });
+              const loss_v = compute_loss_vf(batchData);
+              loss_pi_ = loss_pi.arraySync() as number;
+              loss_vf_ = loss_v.arraySync() as number;
+              return loss_pi.add(loss_v.mul(configs.vf_coef)) as tf.Scalar;
             });
             if (kls[kls.length - 1] > 1.5 * target_kl) {
               // log.warn(
@@ -319,18 +323,18 @@ export class PPO<
           }
         }
 
-        let loss_pi = compute_loss_pi(data, 0).loss_pi.arraySync() as number;
-        let loss_vf = compute_loss_vf(data).arraySync() as number;
+        // let loss_pi = compute_loss_pi(data, 0).loss_pi.arraySync() as number;
+        // let loss_vf = compute_loss_vf(data).arraySync() as number;
 
         const metrics = {
           kl: nj.mean(nj.array(kls)),
           entropy,
           clip_frac,
           trained_pi_iters,
-          loss_pi,
-          loss_vf,
-          delta_pi_loss: loss_pi - loss_pi_old,
-          delta_vf_loss: loss_vf - loss_vf_old,
+          loss_pi: loss_pi_,
+          loss_vf: loss_vf_,
+          // delta_pi_loss: loss_pi - loss_pi_old,
+          // delta_vf_loss: loss_vf - loss_vf_old,
         };
 
         return metrics;

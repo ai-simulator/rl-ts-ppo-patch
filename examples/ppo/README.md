@@ -21,7 +21,7 @@
 - [x] 37 random shuffle
 - [x] 38 add back kl max
 - [x] 39 adjust dense layers to 64
-- [] remove unused loss calcuations
+- [x] 40 remove unused loss calcuations
 - [] fix vf loss high
 - [] fix unstable results
 
