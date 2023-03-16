@@ -11,7 +11,11 @@
 - [x] 27 normalize adv in mini batch
 - [x] 28 add vf_coef
 - [x] 29 use sb3 formula to calc approx_kl
-- [] 30 remove kl max
+- [x] 30 remove kl max
+- [x] 31 add kl mean
+- [x] 32 add kl max warning
+- [x] 33 wrap with tf.tidy
+- [] 34 add back kl max but higher
 - [] fix vf loss high
 - [] fix unstable results
 

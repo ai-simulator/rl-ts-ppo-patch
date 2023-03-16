@@ -220,15 +220,17 @@ export class PPO<
     };
     const compute_loss_vf = (data: PPOBufferComputations) => {
       const { obs, ret } = data;
-      const predict = this.ac.v.apply(obs).flatten();
-      // if (data.ret.size === 64) {
-      //   console.log('TCL ~ ret:', ret);
-      //   console.log('TCL ~ ret:', ret.arraySync());
-      //   console.log('TCL ~ predict:', predict.arraySync());
-      //   console.log('TCL ~ predict.sub(ret).pow(2):', predict.sub(ret).pow(2));
-      //   console.log('TCL ~ predict.sub(ret).pow(2):', predict.sub(ret).pow(2).arraySync());
-      // }
-      return predict.sub(ret).pow(2).mean();
+      return tf.tidy(() => {
+        const predict = this.ac.v.apply(obs).flatten();
+        // if (data.ret.size === 64) {
+        //   console.log('TCL ~ ret:', ret);
+        //   console.log('TCL ~ ret:', ret.arraySync());
+        //   console.log('TCL ~ predict:', predict.arraySync());
+        //   console.log('TCL ~ predict.sub(ret).pow(2):', predict.sub(ret).pow(2));
+        //   console.log('TCL ~ predict.sub(ret).pow(2):', predict.sub(ret).pow(2).arraySync());
+        // }
+        return predict.sub(ret).pow(2).mean();
+      });
     };
 
     const update = async () => {
@@ -265,24 +267,27 @@ export class PPO<
 
           batchStartIndex += batchSize;
 
-          const grads = optimizer.computeGradients(() => {
-            const { loss_pi, pi_info } = compute_loss_pi(batchData, epoch);
-            kls.push(pi_info.approx_kl);
-            entropy = pi_info.entropy;
-            clip_frac = pi_info.clip_frac;
+          const grads = tf.tidy(() => {
+            return optimizer.computeGradients(() => {
+              const { loss_pi, pi_info } = compute_loss_pi(batchData, epoch);
+              kls.push(pi_info.approx_kl);
+              entropy = pi_info.entropy;
+              clip_frac = pi_info.clip_frac;
 
-            const loss_v = compute_loss_vf(batchData);
-            return loss_pi.add(loss_v.mul(configs.vf_coef)) as tf.Scalar;
+              const loss_v = compute_loss_vf(batchData);
+              return loss_pi.add(loss_v.mul(configs.vf_coef)) as tf.Scalar;
+            });
           });
-          // if (kl > 1.5 * target_kl) {
-          //   log.warn(
-          //     `${configs.name} | Early stopping at epoch ${epoch} batch ${batch}/${Math.floor(
-          //       totalSize / batchSize
-          //     )} of optimizing policy due to reaching max kl`
-          //   );
-          //   continueTraining = false;
-          //   break;
-          // }
+          if (kls[kls.length - 1] > 1.5 * target_kl) {
+            log.warn(`${configs.name} | Reaching max kl ${kls[kls.length - 1]} / ${1.5 * target_kl}`);
+            // log.warn(
+            //   `${configs.name} | Early stopping at epoch ${epoch} batch ${batch}/${Math.floor(
+            //     totalSize / batchSize
+            //   )} of optimizing policy due to reaching max kl`
+            // );
+            // continueTraining = false;
+            // break;
+          }
 
           // console.log(
           //   'TCL ~ grads:',
