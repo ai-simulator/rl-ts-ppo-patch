@@ -13,14 +13,33 @@ export const createMLP = (
   out_dim: number,
   hidden_sizes: number[],
   activation: ActivationIdentifier,
+  gain: number,
   name?: string
 ) => {
   const input = tf.input({ shape: [in_dim] });
   let layer = tf.layers.dense({ units: hidden_sizes[0], activation }).apply(input);
   for (const size of hidden_sizes.slice(1)) {
-    layer = tf.layers.dense({ units: size, activation }).apply(layer);
+    layer = tf.layers
+      .dense({
+        units: size,
+        activation,
+        kernelConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
+        biasConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
+        kernelInitializer: tf.initializers.orthogonal({ gain: tf.sqrt(2).arraySync() as number }),
+        biasInitializer: tf.initializers.zeros(),
+      })
+      .apply(layer);
   }
-  layer = tf.layers.dense({ units: out_dim, activation: 'linear' }).apply(layer);
+  layer = tf.layers
+    .dense({
+      units: out_dim,
+      activation: 'linear',
+      kernelConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
+      biasConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
+      kernelInitializer: tf.initializers.orthogonal({ gain }),
+      biasInitializer: tf.initializers.zeros(),
+    })
+    .apply(layer);
   return tf.model({ inputs: input, outputs: layer as SymbolicTensor, name });
 };
 
@@ -35,9 +54,7 @@ export abstract class Critic<Observation extends tf.Tensor> {
 export abstract class ActorCritic<Observation extends tf.Tensor> {
   abstract pi: Actor<Observation>;
   abstract v: Critic<Observation>;
-  abstract step(
-    obs: Observation
-  ): {
+  abstract step(obs: Observation): {
     a: tf.Tensor;
     logp_a: tf.Tensor | null;
     v: tf.Tensor;
@@ -70,7 +87,7 @@ export class MLPGaussianActor extends ActorBase<tf.Tensor> {
       true,
       `gaussian_actor_log_std_${global_gaussian_actor_log_std_id++}`
     );
-    this.mu_net = createMLP(obs_dim, act_dim, hidden_sizes, activation, 'MLP Gaussian Actor');
+    this.mu_net = createMLP(obs_dim, act_dim, hidden_sizes, activation, 0.01, 'MLP Gaussian Actor');
     this.mu = tf.variable(tf.tensor(0));
   }
   _distribution(obs: tf.Tensor) {
@@ -89,7 +106,7 @@ export class MLPCategoricalActor extends ActorBase<tf.Tensor> {
   public logits_net: tf.LayersModel;
   constructor(obs_dim: number, act_dim: number, hidden_sizes: number[], activation: ActivationIdentifier) {
     super();
-    this.logits_net = createMLP(obs_dim, act_dim, hidden_sizes, activation);
+    this.logits_net = createMLP(obs_dim, act_dim, hidden_sizes, activation, 0.01);
   }
   _distribution(obs: tf.Tensor): Distribution {
     obs;
@@ -106,7 +123,7 @@ export class MLPCritic extends Critic<tf.Tensor> {
   public v_net: tf.LayersModel;
   constructor(obs_dim: number, hidden_sizes: number[], activation: ActivationIdentifier) {
     super();
-    this.v_net = createMLP(obs_dim, 1, hidden_sizes, activation, 'MLP Critic');
+    this.v_net = createMLP(obs_dim, 1, hidden_sizes, activation, 1, 'MLP Critic');
   }
   apply(obs: tf.Tensor) {
     // TODO check need squeeze?

@@ -22,6 +22,8 @@
 - [x] 38 add back kl max
 - [x] 39 adjust dense layers to 64
 - [x] 40 remove unused loss calcuations
+- [] 41 add max norm constraint and gain to layers
+- [] ajust max kl
 - [] fix vf loss high
 - [] fix unstable results
 
