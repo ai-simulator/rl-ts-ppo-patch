@@ -24,9 +24,9 @@ export const createMLP = (
         units: size,
         activation,
         kernelConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
-        biasConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
+        // biasConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
         kernelInitializer: tf.initializers.orthogonal({ gain: tf.sqrt(2).arraySync() as number }),
-        biasInitializer: tf.initializers.zeros(),
+        // biasInitializer: tf.initializers.zeros(),
       })
       .apply(layer);
   }
@@ -35,9 +35,9 @@ export const createMLP = (
       units: out_dim,
       activation: 'linear',
       kernelConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
-      biasConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
+      // biasConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
       kernelInitializer: tf.initializers.orthogonal({ gain }),
-      biasInitializer: tf.initializers.zeros(),
+      // biasInitializer: tf.initializers.zeros(),
     })
     .apply(layer);
   return tf.model({ inputs: input, outputs: layer as SymbolicTensor, name });

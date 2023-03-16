@@ -24,6 +24,7 @@
 - [x] 40 remove unused loss calcuations
 - [x] 41 add max norm constraint and gain to layers
 - [x] 42 ajust max kl to 0.03
+- [x] 43 remove bias terms
 - [] fix vf loss high
 - [] fix unstable results
 
