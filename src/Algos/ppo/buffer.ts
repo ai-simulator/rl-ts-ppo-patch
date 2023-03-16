@@ -90,8 +90,8 @@ export class PPOBuffer {
     // compute GAE-Lambda advantage, assign in place.
     this.advBuf.slice(path_slice).assign(core.discountCumSum(deltas, this.gamma * this.lam), false);
 
-    // compute rewards-to-go
-    this.retBuf.slice(path_slice).assign(core.discountCumSum(rews, this.gamma).slice([0, -1]), false);
+    // compute ret with td lambda
+    this.retBuf.slice(path_slice).assign(this.advBuf.slice(path_slice).add(this.valBuf.slice(path_slice)), false);
 
     this.pathStartIdx = this.ptr;
   }

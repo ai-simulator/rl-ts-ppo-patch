@@ -6,6 +6,7 @@
 - [x] adjust adam lr
 - [x] adjust steps_per_epoch
 - [x] add n_epochs
+- [x] adjust return to use td(lambda)
 - [] fix vf loss high
 - [] fix unstable results
 
