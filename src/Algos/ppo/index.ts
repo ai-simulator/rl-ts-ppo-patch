@@ -236,7 +236,7 @@ export class PPO<
       const totalSize = configs.steps_per_iteration;
       const batchSize = configs.batch_size;
 
-      let kl = 0;
+      let kls: number[] = [];
       let entropy = 0;
       let clip_frac = 0;
       let trained_pi_iters = 0;
@@ -267,22 +267,22 @@ export class PPO<
 
           const grads = optimizer.computeGradients(() => {
             const { loss_pi, pi_info } = compute_loss_pi(batchData, epoch);
-            kl = pi_info.approx_kl;
+            kls.push(pi_info.approx_kl);
             entropy = pi_info.entropy;
             clip_frac = pi_info.clip_frac;
 
             const loss_v = compute_loss_vf(batchData);
             return loss_pi.add(loss_v.mul(configs.vf_coef)) as tf.Scalar;
           });
-          if (kl > 1.5 * target_kl) {
-            log.warn(
-              `${configs.name} | Early stopping at epoch ${epoch} batch ${batch}/${Math.floor(
-                totalSize / batchSize
-              )} of optimizing policy due to reaching max kl`
-            );
-            continueTraining = false;
-            break;
-          }
+          // if (kl > 1.5 * target_kl) {
+          //   log.warn(
+          //     `${configs.name} | Early stopping at epoch ${epoch} batch ${batch}/${Math.floor(
+          //       totalSize / batchSize
+          //     )} of optimizing policy due to reaching max kl`
+          //   );
+          //   continueTraining = false;
+          //   break;
+          // }
 
           // console.log(
           //   'TCL ~ grads:',
@@ -311,7 +311,7 @@ export class PPO<
       let loss_vf = compute_loss_vf(data).arraySync() as number;
 
       const metrics = {
-        kl,
+        kl: nj.mean(nj.array(kls)),
         entropy,
         clip_frac,
         trained_pi_iters,

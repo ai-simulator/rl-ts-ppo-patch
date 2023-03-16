@@ -11,6 +11,7 @@
 - [x] 27 normalize adv in mini batch
 - [x] 28 add vf_coef
 - [x] 29 use sb3 formula to calc approx_kl
+- [] 30 remove kl max
 - [] fix vf loss high
 - [] fix unstable results
 
