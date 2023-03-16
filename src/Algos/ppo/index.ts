@@ -207,7 +207,14 @@ export class PPO<
     };
     const compute_loss_vf = (data: PPOBufferComputations) => {
       const { obs, ret } = data;
-      return this.ac.v.apply(obs).sub(ret).pow(2).mean();
+      // console.log('TCL ~ ret:', ret);
+      const predict = this.ac.v.apply(obs);
+      // console.log('TCL ~ predict:', predict);
+      // if (data.ret.size === 64) {
+      //   console.log('TCL ~ ret:', ret.arraySync());
+      //   console.log('TCL ~ predict:', predict.arraySync());
+      // }
+      return predict.sub(ret).pow(2).mean();
     };
 
     const update = async () => {
@@ -261,6 +268,8 @@ export class PPO<
 
           const vf_grads = vf_optimizer.computeGradients(() => {
             const loss_v = compute_loss_vf(batchData);
+            // console.log('TCL ~ loss_v:', loss_v);
+            // console.log('TCL ~ loss_v:', loss_v.arraySync());
             return loss_v as tf.Scalar;
           });
           vf_optimizer.applyGradients(vf_grads.grads);
