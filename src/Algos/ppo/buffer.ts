@@ -104,17 +104,17 @@ export class PPOBuffer {
     this.ptr = 0;
 
     // move to tensors for use by update method and nicer functions
-    let advBuf = np.toTensor(this.advBuf);
+    // let advBuf = np.toTensor(this.advBuf);
 
-    // normalization trick
-    const stats = await ct.statisticsScalar(advBuf, { max: true, min: true }, true);
-    advBuf = advBuf.sub(stats.mean).div(stats.std);
-    this.advBuf = await np.fromTensor(advBuf);
+    // // normalization trick
+    // const stats = await ct.statisticsScalar(advBuf, { max: true, min: true }, true);
+    // advBuf = advBuf.sub(stats.mean).div(stats.std);
+    // this.advBuf = await np.fromTensor(advBuf);
     return {
       obs: np.toTensor(this.obsBuf),
       act: np.toTensor(this.actBuf) as Tensor1D,
       ret: np.toTensor(this.retBuf) as Tensor1D,
-      adv: advBuf as Tensor1D,
+      adv: np.toTensor(this.advBuf) as Tensor1D,
       logp: np.toTensor(this.logpBuf) as Tensor1D,
     };
   }

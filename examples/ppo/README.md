@@ -7,6 +7,10 @@
 - [x] adjust steps_per_epoch
 - [x] add n_epochs
 - [x] adjust return to use td(lambda)
+- [x] 26 combine optimizers
+- [x] 27 normalize adv in mini batch
+- [x] 28 add vf_coef
+- [x] 29 use sb3 formula to calc approx_kl
 - [] fix vf loss high
 - [] fix unstable results
 
