@@ -253,13 +253,14 @@ export class PPO<
           let batchStartIndex = 0;
           let batch = 0;
           let maxBatch = Math.floor(totalSize / batchSize);
+          const indices = tf.tensor1d(Array.from(tf.util.createShuffledIndices(totalSize)), 'int32');
           while (batch < maxBatch) {
             const batchData = {
-              obs: data.obs.slice(batchStartIndex, batchSize),
-              act: data.act.slice(batchStartIndex, batchSize),
-              adv: data.adv.slice(batchStartIndex, batchSize),
-              ret: data.ret.slice(batchStartIndex, batchSize),
-              logp: data.logp.slice(batchStartIndex, batchSize),
+              obs: data.obs.gather(indices.slice(batchStartIndex, batchSize)),
+              act: data.act.gather(indices.slice(batchStartIndex, batchSize)),
+              adv: data.adv.gather(indices.slice(batchStartIndex, batchSize)),
+              ret: data.ret.gather(indices.slice(batchStartIndex, batchSize)),
+              logp: data.logp.gather(indices.slice(batchStartIndex, batchSize)),
             };
 
             // normalization adv

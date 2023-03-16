@@ -18,6 +18,8 @@
 - [x] 34 fix memeory leak
 - [x] 35 add back kl max
 - [x] 36 remove kl max
+- [x] 37 random shuffle
+- [] remove unused loss calcuations
 - [] fix vf loss high
 - [] fix unstable results
 
