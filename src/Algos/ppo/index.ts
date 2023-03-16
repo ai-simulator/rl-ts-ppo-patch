@@ -234,149 +234,159 @@ export class PPO<
     };
 
     const update = async () => {
-      const data = await buffer.get();
-      const totalSize = configs.steps_per_iteration;
-      const batchSize = configs.batch_size;
+      return tf.tidy(() => {
+        const data = buffer.get();
+        const totalSize = configs.steps_per_iteration;
+        const batchSize = configs.batch_size;
 
-      let kls: number[] = [];
-      let entropy = 0;
-      let clip_frac = 0;
-      let trained_pi_iters = 0;
+        let kls: number[] = [];
+        let entropy = 0;
+        let clip_frac = 0;
+        let trained_pi_iters = 0;
 
-      let loss_pi_old = compute_loss_pi(data, 0).loss_pi.arraySync() as number;
-      let loss_vf_old = compute_loss_vf(data).arraySync() as number;
+        let loss_pi_old = compute_loss_pi(data, 0).loss_pi.arraySync() as number;
+        let loss_vf_old = compute_loss_vf(data).arraySync() as number;
 
-      let continueTraining = true;
+        let continueTraining = true;
 
-      for (let epoch = 0; epoch < configs.n_epochs; epoch++) {
-        let batchStartIndex = 0;
-        let batch = 0;
-        let maxBatch = Math.floor(totalSize / batchSize);
-        while (batch < maxBatch) {
-          const batchData = {
-            obs: data.obs.slice(batchStartIndex, batchSize),
-            act: data.act.slice(batchStartIndex, batchSize),
-            adv: data.adv.slice(batchStartIndex, batchSize),
-            ret: data.ret.slice(batchStartIndex, batchSize),
-            logp: data.logp.slice(batchStartIndex, batchSize),
-          };
+        for (let epoch = 0; epoch < configs.n_epochs; epoch++) {
+          let batchStartIndex = 0;
+          let batch = 0;
+          let maxBatch = Math.floor(totalSize / batchSize);
+          while (batch < maxBatch) {
+            const batchData = {
+              obs: data.obs.slice(batchStartIndex, batchSize),
+              act: data.act.slice(batchStartIndex, batchSize),
+              adv: data.adv.slice(batchStartIndex, batchSize),
+              ret: data.ret.slice(batchStartIndex, batchSize),
+              logp: data.logp.slice(batchStartIndex, batchSize),
+            };
 
-          // normalization adv
-          const stats = await ct.statisticsScalar(batchData.adv, { max: true, min: true }, true);
-          batchData.adv = batchData.adv.sub(stats.mean).div(stats.std.add(1e-8));
+            // normalization adv
+            const stats = {
+              mean: batchData.adv.mean(),
+              std: nj.std(batchData.adv.arraySync()),
+            };
+            batchData.adv = batchData.adv.sub(stats.mean).div(stats.std);
 
-          batchStartIndex += batchSize;
+            batchStartIndex += batchSize;
 
-          const grads = tf.tidy(() => {
-            return optimizer.computeGradients(() => {
-              const { loss_pi, pi_info } = compute_loss_pi(batchData, epoch);
-              kls.push(pi_info.approx_kl);
-              entropy = pi_info.entropy;
-              clip_frac = pi_info.clip_frac;
+            const grads = tf.tidy(() => {
+              return optimizer.computeGradients(() => {
+                const { loss_pi, pi_info } = compute_loss_pi(batchData, epoch);
+                kls.push(pi_info.approx_kl);
+                entropy = pi_info.entropy;
+                clip_frac = pi_info.clip_frac;
 
-              const loss_v = compute_loss_vf(batchData);
-              return loss_pi.add(loss_v.mul(configs.vf_coef)) as tf.Scalar;
+                const loss_v = compute_loss_vf(batchData);
+                return loss_pi.add(loss_v.mul(configs.vf_coef)) as tf.Scalar;
+              });
             });
-          });
-          if (kls[kls.length - 1] > 1.5 * target_kl) {
-            log.warn(`${configs.name} | Reaching max kl ${kls[kls.length - 1]} / ${1.5 * target_kl}`);
-            // log.warn(
-            //   `${configs.name} | Early stopping at epoch ${epoch} batch ${batch}/${Math.floor(
-            //     totalSize / batchSize
-            //   )} of optimizing policy due to reaching max kl`
+            if (kls[kls.length - 1] > 1.5 * target_kl) {
+              // log.warn(
+              //   `${configs.name} | Epoch ${epoch} | Reaching max kl ${kls[kls.length - 1]} / ${1.5 * target_kl}`
+              // );
+              // log.warn(
+              //   `${configs.name} | Early stopping at epoch ${epoch} batch ${batch}/${Math.floor(
+              //     totalSize / batchSize
+              //   )} of optimizing policy due to reaching max kl`
+              // );
+              // continueTraining = false;
+              // break;
+            }
+
+            // console.log(
+            //   'TCL ~ grads:',
+            //   Object.entries(grads.grads).map(([key, value]) => ({ key, value: value.arraySync() }))
             // );
-            // continueTraining = false;
-            // break;
+
+            // for (const key in grads.grads) {
+            //   if (Object.prototype.hasOwnProperty.call(grads.grads, key)) {
+            //     const element = grads.grads[key];
+            //     const clippedGrads = element.clipByValue(-0.01, 0.01);
+            //     grads.grads[key] = clippedGrads;
+            //     // console.log('TCL ~ element:', element);
+            //   }
+            // }
+
+            optimizer.applyGradients(grads.grads);
+            batch++;
           }
-
-          // console.log(
-          //   'TCL ~ grads:',
-          //   Object.entries(grads.grads).map(([key, value]) => ({ key, value: value.arraySync() }))
-          // );
-
-          // for (const key in grads.grads) {
-          //   if (Object.prototype.hasOwnProperty.call(grads.grads, key)) {
-          //     const element = grads.grads[key];
-          //     const clippedGrads = element.clipByValue(-0.01, 0.01);
-          //     grads.grads[key] = clippedGrads;
-          //     // console.log('TCL ~ element:', element);
-          //   }
-          // }
-
-          optimizer.applyGradients(grads.grads);
-          batch++;
+          trained_pi_iters++;
+          if (!continueTraining) {
+            break;
+          }
         }
-        trained_pi_iters++;
-        if (!continueTraining) {
-          break;
-        }
-      }
 
-      let loss_pi = compute_loss_pi(data, 0).loss_pi.arraySync() as number;
-      let loss_vf = compute_loss_vf(data).arraySync() as number;
+        let loss_pi = compute_loss_pi(data, 0).loss_pi.arraySync() as number;
+        let loss_vf = compute_loss_vf(data).arraySync() as number;
 
-      const metrics = {
-        kl: nj.mean(nj.array(kls)),
-        entropy,
-        clip_frac,
-        trained_pi_iters,
-        loss_pi,
-        loss_vf,
-        delta_pi_loss: loss_pi - loss_pi_old,
-        delta_vf_loss: loss_vf - loss_vf_old,
-      };
+        const metrics = {
+          kl: nj.mean(nj.array(kls)),
+          entropy,
+          clip_frac,
+          trained_pi_iters,
+          loss_pi,
+          loss_vf,
+          delta_pi_loss: loss_pi - loss_pi_old,
+          delta_vf_loss: loss_vf - loss_vf_old,
+        };
 
-      return metrics;
+        return metrics;
+      });
     };
 
     // const start_time = process.hrtime()[0] * 1e6 + process.hrtime()[1];
     let o = env.reset();
     let ep_ret = 0;
     let ep_len = 0;
-    let ep_rets = [];
+    let ep_rets: number[] = [];
     for (let iteration = 0; iteration < configs.iterations; iteration++) {
-      for (let t = 0; t < local_steps_per_iteration; t++) {
-        const { a, v, logp_a } = this.ac.step(this.obsToTensor(o));
-        const action = np.tensorLikeToNdArray(this.actionToTensor(a));
-        const stepInfo = env.step(action);
-        const next_o = stepInfo.observation;
+      tf.tidy(() => {
+        for (let t = 0; t < local_steps_per_iteration; t++) {
+          const { a, v, logp_a } = this.ac.step(this.obsToTensor(o));
+          const action = np.tensorLikeToNdArray(this.actionToTensor(a));
+          const stepInfo = env.step(action);
+          const next_o = stepInfo.observation;
 
-        const r = stepInfo.reward;
-        const d = stepInfo.done;
-        ep_ret += r;
-        ep_len += 1;
+          const r = stepInfo.reward;
+          const d = stepInfo.done;
+          ep_ret += r;
+          ep_len += 1;
 
-        buffer.store(
-          np.tensorLikeToNdArray(this.obsToTensor(o)),
-          np.tensorLikeToNdArray(a),
-          r,
-          np.tensorLikeToNdArray(v).get(0, 0),
-          np.tensorLikeToNdArray(logp_a!).get(0, 0)
-        );
+          buffer.store(
+            np.tensorLikeToNdArray(this.obsToTensor(o)),
+            np.tensorLikeToNdArray(a),
+            r,
+            np.tensorLikeToNdArray(v).get(0, 0),
+            np.tensorLikeToNdArray(logp_a!).get(0, 0)
+          );
 
-        o = next_o;
+          o = next_o;
 
-        const timeout = ep_len === configs.max_ep_len;
-        const terminal = d || timeout;
-        const epoch_ended = t === local_steps_per_iteration - 1;
-        if (terminal || epoch_ended) {
-          if (epoch_ended && !terminal) {
-            log.warn(`${configs.name} | Trajectory cut off by epoch at ${ep_len} steps`);
+          const timeout = ep_len === configs.max_ep_len;
+          const terminal = d || timeout;
+          const epoch_ended = t === local_steps_per_iteration - 1;
+          if (terminal || epoch_ended) {
+            if (epoch_ended && !terminal) {
+              log.warn(`${configs.name} | Trajectory cut off by epoch at ${ep_len} steps`);
+            }
+            let v = 0;
+            if (timeout || epoch_ended) {
+              v = (this.ac.step(this.obsToTensor(o)).v.arraySync() as number[][])[0][0];
+            }
+            buffer.finishPath(v);
+            if (terminal) {
+              // store ep ret and eplen stuff
+              ep_rets.push(ep_ret);
+            }
+            o = env.reset();
+            ep_ret = 0;
+            ep_len = 0;
           }
-          let v = 0;
-          if (timeout || epoch_ended) {
-            v = (this.ac.step(this.obsToTensor(o)).v.arraySync() as number[][])[0][0];
-          }
-          buffer.finishPath(v);
-          if (terminal) {
-            // store ep ret and eplen stuff
-            ep_rets.push(ep_ret);
-          }
-          o = env.reset();
-          ep_ret = 0;
-          ep_len = 0;
         }
-      }
+      });
+
       // TODO save model
 
       // update actor critic
@@ -388,7 +398,7 @@ export class PPO<
         std: nj.std(ep_rets),
       };
 
-      const msg = `${configs.name} | Epoch ${iteration} metrics: `;
+      const msg = `${configs.name} | Iteration ${iteration} metrics: `;
       log.info(
         {
           ...metrics,
@@ -396,6 +406,7 @@ export class PPO<
         },
         msg
       );
+      console.log('numTensors', tf.memory().numTensors);
       await configs.iterationCallback({
         iteration,
         ...metrics,

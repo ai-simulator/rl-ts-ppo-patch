@@ -96,7 +96,7 @@ export class PPOBuffer {
     this.pathStartIdx = this.ptr;
   }
 
-  public async get(): Promise<PPOBufferComputations> {
+  public get(): PPOBufferComputations {
     if (this.ptr !== this.maxSize) {
       throw new Error("Buffer isn't full yet!");
     }

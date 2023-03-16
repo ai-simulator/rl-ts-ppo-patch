@@ -15,7 +15,8 @@
 - [x] 31 add kl mean
 - [x] 32 add kl max warning
 - [x] 33 wrap with tf.tidy
-- [] 34 add back kl max but higher
+- [x] 34 fix memeory leak
+- [] add back kl max but higher
 - [] fix vf loss high
 - [] fix unstable results
 
