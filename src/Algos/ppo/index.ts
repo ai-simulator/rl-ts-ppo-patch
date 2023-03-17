@@ -386,10 +386,16 @@ export class PPO<
           const stepInfo = env.step(action);
           const next_o = stepInfo.observation;
 
-          const r = stepInfo.reward;
+          let r = stepInfo.reward;
           const d = stepInfo.done;
           ep_ret += r;
           ep_len += 1;
+
+          if (d && stepInfo.info && stepInfo.info['TimeLimit.truncated'] && stepInfo.info['terminal_observation']) {
+            const terminalObs = this.obsToTensor(stepInfo.info['terminal_observation']);
+            const terminalValue = (this.ac.step(terminalObs).v.arraySync() as number[][])[0][0];
+            r += configs.gamma * terminalValue;
+          }
 
           buffer.store(
             np.tensorLikeToNdArray(this.obsToTensor(o)),
@@ -412,7 +418,7 @@ export class PPO<
             if (timeout || epoch_ended) {
               v = (this.ac.step(this.obsToTensor(o)).v.arraySync() as number[][])[0][0];
             }
-            buffer.finishPath(v, terminal);
+            buffer.finishPath(v, d);
             if (terminal) {
               // store ep ret and eplen stuff
               ep_rets.push(ep_ret);

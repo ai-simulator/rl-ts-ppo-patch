@@ -3,7 +3,7 @@ import { CartPole } from '../../src/Environments/examples/Cartpole';
 import * as tf from '@tensorflow/tfjs-node';
 import * as random from '../../src/utils/random';
 
-const RUN = `cart-48-batch-64`;
+const RUN = `cart-49-batch-64`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
@@ -32,7 +32,7 @@ const main = async () => {
     train_v_iters: 10,
     batch_size: 64,
     vf_coef: 0.5,
-    target_kl: 0.015,
+    target_kl: 0.01,
     savePath,
     iterationCallback(epochData) {
       summaryWriter.scalar('reward', epochData.ep_rets.mean, epochData.t);
