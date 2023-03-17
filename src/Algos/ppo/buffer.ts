@@ -75,22 +75,33 @@ export class PPOBuffer {
     this.ptr += 1;
   }
 
-  public finishPath(lastVal = 0) {
+  public finishPath(lastVal = 0, terminal: boolean) {
+    // const path_slice = [this.pathStartIdx, this.ptr];
+    // const rews = np.push(this.rewBuf.slice(path_slice), lastVal);
+    // const vals = np.push(this.valBuf.slice(path_slice), lastVal);
+    // // GAE Lambda Advantage = sum (gamma lambda)^h delta_{t+h, 0}
+    // // compute delta_{t+h, 0}
+    // // replicates deltas = rews[:-1] + gamma * vals[1:] - vals[:-1]
+    // const deltas = rews
+    //   .slice([0, -1])
+    //   .add(vals.slice(1).multiply(this.gamma))
+    //   .subtract(vals.slice([0, -1]));
+
+    // // compute GAE-Lambda advantage, assign in place.
+    // this.advBuf.slice(path_slice).assign(core.discountCumSum(deltas, this.gamma * this.lam), false);
+
+    // // compute ret with td lambda
+    // this.retBuf.slice(path_slice).assign(this.advBuf.slice(path_slice).add(this.valBuf.slice(path_slice)), false);
+
     const path_slice = [this.pathStartIdx, this.ptr];
-    const rews = np.push(this.rewBuf.slice(path_slice), lastVal);
-    const vals = np.push(this.valBuf.slice(path_slice), lastVal);
-    // GAE Lambda Advantage = sum (gamma lambda)^h delta_{t+h, 0}
-    // compute delta_{t+h, 0}
-    // replicates deltas = rews[:-1] + gamma * vals[1:] - vals[:-1]
-    const deltas = rews
-      .slice([0, -1])
-      .add(vals.slice(1).multiply(this.gamma))
-      .subtract(vals.slice([0, -1]));
-
-    // compute GAE-Lambda advantage, assign in place.
-    this.advBuf.slice(path_slice).assign(core.discountCumSum(deltas, this.gamma * this.lam), false);
-
-    // compute ret with td lambda
+    let lastGaeLam = 0;
+    for (let t = this.ptr - 1; t >= this.pathStartIdx; t--) {
+      const nextVal = t === this.ptr - 1 ? lastVal : this.valBuf.get(t + 1);
+      const nextNonTerminal = t === this.ptr - 1 ? (terminal ? 0 : 1) : 1;
+      const delta = this.rewBuf.get(t) + this.gamma * nextVal * nextNonTerminal - this.valBuf.get(t);
+      lastGaeLam = delta + this.gamma * this.lam * nextNonTerminal * lastGaeLam;
+      this.advBuf.set(t, lastGaeLam);
+    }
     this.retBuf.slice(path_slice).assign(this.advBuf.slice(path_slice).add(this.valBuf.slice(path_slice)), false);
 
     this.pathStartIdx = this.ptr;

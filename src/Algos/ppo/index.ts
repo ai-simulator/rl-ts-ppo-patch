@@ -412,7 +412,7 @@ export class PPO<
             if (timeout || epoch_ended) {
               v = (this.ac.step(this.obsToTensor(o)).v.arraySync() as number[][])[0][0];
             }
-            buffer.finishPath(v);
+            buffer.finishPath(v, terminal);
             if (terminal) {
               // store ep ret and eplen stuff
               ep_rets.push(ep_ret);

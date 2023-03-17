@@ -34,6 +34,7 @@
 - [x] 45 add max norm clipping and reduce max kl
 - [x] 46 increase max kl
 - [x] 47 remove norm limit in init
+- [x] 48 GAE formula
 - [] fix vf loss high
 - [] fix unstable results
 
