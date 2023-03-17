@@ -1,9 +1,9 @@
 import * as RL from '../../src';
-import { CartPole } from '../../src/Environments/examples/Cartpole';
+import { Pendulum } from '../../src/Environments/examples/Pendulum';
 import * as tf from '@tensorflow/tfjs-node';
 import * as random from '../../src/utils/random';
 
-const RUN = `44-batch-64`;
+const RUN = `pen-3-box`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
@@ -13,20 +13,20 @@ const savePath = modelPath;
 const main = async () => {
   random.seed(0);
   const makeEnv = () => {
-    return new CartPole();
+    return new Pendulum();
   };
   const env = makeEnv();
   const ac = new RL.Models.MLPActorCritic(env.observationSpace, env.actionSpace, [64, 64]);
   const ppo = new RL.Algos.PPO(makeEnv, ac, {
-    actionToTensor: (action: tf.Tensor) => {
-      return action.argMax(1);
-    },
+    // actionToTensor: (action: tf.Tensor) => {
+    //   return action.argMax(1);
+    // },
   });
   await ppo.train({
-    optimizer: tf.train.adam(3e-4),
+    optimizer: tf.train.adam(3e-4, 0.9, 0.999, 1e-5),
     lam: 0.95,
     steps_per_iteration: 2048,
-    iterations: 200,
+    iterations: 300,
     n_epochs: 10,
     train_pi_iters: 10,
     train_v_iters: 10,

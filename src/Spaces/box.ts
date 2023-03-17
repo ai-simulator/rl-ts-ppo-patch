@@ -116,7 +116,7 @@ export class Box extends Space<nj.NdArray<number>> {
     }
     return np.toNj(sample);
   }
-  contains(x: NdArray): boolean {
+  contains(x: NdArray | number): boolean {
     if (!np.arrayEqual(x.shape, this.shape)) return false;
     return true;
   }

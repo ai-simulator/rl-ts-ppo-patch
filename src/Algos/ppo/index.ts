@@ -311,6 +311,26 @@ export class PPO<
               break;
             }
 
+            // function clipGradNorm(grads: tf.Tensor, maxNorm: number) {
+            //   const gradNorm = tf.norm(grads);
+            //   const clipNorm = tf.maximum(gradNorm, maxNorm);
+            //   const clippedGrads = grads.mul(clipNorm.div(gradNorm));
+            //   return clippedGrads;
+            // }
+
+            const maxNorm = 0.5;
+            const clippedGrads: tf.NamedTensorMap = {};
+            // const norm = tf.norm(Object.values(grads.grads));
+            const totalNorm = tf.norm(tf.stack(Object.values(grads.grads).map((grad) => tf.norm(grad))));
+            // console.log('TCL ~ totalNorm:', totalNorm.arraySync());
+            const clipCoeff = tf.minimum(tf.scalar(1.0), tf.scalar(maxNorm).div(totalNorm.add(1e-6)));
+            // console.log('TCL ~ clipCoeff:', clipCoeff.arraySync());
+            // const clippedGrads = tf.mul(grads.grads, scale);
+            Object.keys(grads.grads).forEach((name) => {
+              // clippedGrads[name] = clipGradNorm(grads[name], 0.5);
+              clippedGrads[name] = tf.mul(grads.grads[name], clipCoeff);
+            });
+
             // console.log(
             //   'TCL ~ grads:',
             //   Object.entries(grads.grads).map(([key, value]) => ({ key, value: value.arraySync() }))
@@ -325,7 +345,7 @@ export class PPO<
             //   }
             // }
 
-            optimizer.applyGradients(grads.grads);
+            optimizer.applyGradients(clippedGrads);
             batch++;
           }
           trained_pi_iters++;

@@ -1,4 +1,9 @@
-# PPO tests
+# PPO pendulum tests
+
+- [x] 2 adjust adam epsilon
+- [] 3 clip norm
+
+# PPO cartpole tests
 
 - [x] lam: 0.97, alpha 3e-4 - not good
 - [x] rollout buffer size 2000 - not good
