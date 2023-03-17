@@ -2,6 +2,7 @@
 
 - [x] 2 adjust adam epsilon
 - [x] 3 clip norm
+- [x] 4 add timeout info
 
 # PPO cartpole tests
 

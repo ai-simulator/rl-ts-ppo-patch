@@ -94,10 +94,20 @@ export class Pendulum extends Environment<ObservationSpace, ActionSpace, Observa
 
     this.state = nj.array([newth, newthdot]);
     this.timestep += 1;
+
+    let info: any = {};
+    let done = false;
+    // https://github.com/openai/gym/blob/v0.21.0/gym/wrappers/time_limit.py#L21-L22
+    if (this.timestep >= this.maxEpisodeSteps) {
+      info['TimeLimit.truncated'] = !done;
+      info['terminal_observation'] = this.state;
+      done = true;
+    }
+
     return {
       observation: this.getObs(),
       reward: -costs,
-      done: this.timestep >= this.maxEpisodeSteps,
+      done,
       info: {},
     };
   }

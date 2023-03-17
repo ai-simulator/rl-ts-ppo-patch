@@ -3,7 +3,7 @@ import { Pendulum } from '../../src/Environments/examples/Pendulum';
 import * as tf from '@tensorflow/tfjs-node';
 import * as random from '../../src/utils/random';
 
-const RUN = `pen-3-box`;
+const RUN = `pen-4-box`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
