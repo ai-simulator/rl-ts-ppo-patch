@@ -24,7 +24,7 @@ export const createMLP = (
       .dense({
         units: size,
         activation,
-        kernelConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
+        // kernelConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
         // biasConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
         kernelInitializer: tf.initializers.orthogonal({ gain: tf.sqrt(2).arraySync() as number }),
         // biasInitializer: tf.initializers.zeros(),
@@ -35,7 +35,7 @@ export const createMLP = (
     .dense({
       units: out_dim,
       activation: 'linear',
-      kernelConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
+      // kernelConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
       // biasConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
       kernelInitializer: tf.initializers.orthogonal({ gain }),
       // biasInitializer: tf.initializers.zeros(),

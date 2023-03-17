@@ -33,7 +33,7 @@
 - [x] 44 save and load model
 - [x] 45 add max norm clipping and reduce max kl
 - [x] 46 increase max kl
-- [] remove norm limit in init
+- [x] 47 remove norm limit in init
 - [] fix vf loss high
 - [] fix unstable results
 
