@@ -5,7 +5,7 @@
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "scripts": {
-    "ppo": "node -r ts-node/register -r tsconfig-paths/register 'examples/ppo/run.ts'",
+    "cart": "node -r ts-node/register -r tsconfig-paths/register 'examples/ppo/run-cart.ts'",
     "pen": "node -r ts-node/register -r tsconfig-paths/register 'examples/ppo/run-pen.ts'",
     "test:sh": "sh ./tests/test.sh",
     "test:ppo": "mocha -r ts-node/register -r tsconfig-paths/register --recursive 'tests/Algos/ppo.spec.ts'",
