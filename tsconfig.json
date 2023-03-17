@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "es5",
     "module": "CommonJS",
-    "lib": ["es2015", "dom"],
+    "lib": ["ESNext", "dom"],
     "outDir": "lib",
     "sourceMap": true,
     "declaration": true,
@@ -13,8 +13,8 @@
     "isolatedModules": true,
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "alwaysStrict": true,
+    // "strict": true,
+    // "alwaysStrict": true,
     "skipLibCheck": true,
     "baseUrl": "./src",
     "paths": {

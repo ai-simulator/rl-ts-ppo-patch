@@ -1,3 +1,7 @@
+# block env implementation
+
+- [x] 1 init block env
+
 # PPO pendulum tests
 
 - [x] 2 adjust adam epsilon
@@ -43,5 +47,3 @@
 # regex
 
 ^(?!pen)
-
-# block env implementation
