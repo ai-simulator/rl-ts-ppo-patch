@@ -36,6 +36,7 @@
 - [x] 47 remove norm limit in init
 - [x] 48 GAE formula
 - [x] 49 fix vf loss high by bootstraping timeout reward
+- [] 50 adjust max kl
 - [] fix unstable results
 
 # regex
