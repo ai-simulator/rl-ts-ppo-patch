@@ -1,7 +1,7 @@
 # PPO pendulum tests
 
 - [x] 2 adjust adam epsilon
-- [] 3 clip norm
+- [x] 3 clip norm
 
 # PPO cartpole tests
 
@@ -31,7 +31,12 @@
 - [x] 42 ajust max kl to 0.03
 - [x] 43 remove bias terms
 - [x] 44 save and load model
+- [x] 45 add max norm clipping and reduce max kl
 - [] fix vf loss high
 - [] fix unstable results
+
+# regex
+
+^(?!pen)
 
 # block env implementation

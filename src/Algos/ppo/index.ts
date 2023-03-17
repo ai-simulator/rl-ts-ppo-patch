@@ -377,6 +377,7 @@ export class PPO<
     let ep_ret = 0;
     let ep_len = 0;
     let ep_rets: number[] = [];
+    let same_return_count = 0;
     for (let iteration = 0; iteration < configs.iterations; iteration++) {
       tf.tidy(() => {
         for (let t = 0; t < local_steps_per_iteration; t++) {
@@ -425,12 +426,20 @@ export class PPO<
 
       // save model
       if (ep_rets.every((ret) => ret === ep_rets[0])) {
-        log.warn(`${configs.name} | Early stopping at iteration ${iteration} due to all episode returns are the same`);
-        if (configs.savePath) {
-          console.log('saving model to', configs.savePath);
-          await this.ac.save(configs.savePath);
+        same_return_count++;
+        log.warn(`${configs.name} | Episode returns are the same for ${same_return_count} times`);
+        if (same_return_count > 40) {
+          if (configs.savePath) {
+            log.warn(
+              `${configs.name} | Early stopping at iteration ${iteration} due to all episode returns are the same`
+            );
+            console.log('saving model to', configs.savePath);
+            await this.ac.save(configs.savePath);
+          }
+          break;
         }
-        break;
+      } else {
+        same_return_count = 0;
       }
 
       // update actor critic
