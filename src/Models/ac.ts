@@ -169,6 +169,12 @@ export class MLPActorCritic extends ActorCritic<tf.Tensor> {
   act(obs: tf.Tensor) {
     return this.step(obs).a;
   }
+
+  print() {
+    this.pi.mu_net.summary();
+    this.v.v_net.summary();
+  }
+
   async save(path: string) {
     await this.pi.mu_net.save(`file://${path}-pi`);
     await this.v.v_net.save(`file://${path}-v`);

@@ -1,6 +1,7 @@
 # block env implementation
 
 - [x] 1 init block env
+- [x] 2 working with simple game config size 4
 
 # PPO pendulum tests
 

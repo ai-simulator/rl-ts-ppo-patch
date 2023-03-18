@@ -3,15 +3,16 @@ import path from 'path';
 import { Box, Discrete } from 'rl-ts/lib/Spaces';
 import nj, { NdArray } from 'numjs';
 import * as random from 'rl-ts/lib/utils/random';
-import { fromTensorSync, tensorLikeToNdArray } from 'rl-ts/lib/utils/np';
+import { fromTensorSync, tensorLikeToNdArray, toTensor } from 'rl-ts/lib/utils/np';
 import { Game } from './model/game';
 import ndarray from 'ndarray';
 import * as tf from '@tensorflow/tfjs';
 import { Move } from './model/move';
+import { renderShapeAsString } from './model/shape';
 
 export type State = NdArray<number>;
 export type Observation = NdArray<number>;
-export type Action = number | TensorLike;
+export type Action = number;
 export type ActionSpace = Discrete;
 export type ObservationSpace = Box;
 export type Reward = number;
@@ -20,20 +21,20 @@ export interface BlockConfigs {
   game: Game;
 }
 
-function moveToAction(move: Move, width: number) {
+export function moveToAction(move: Move, width: number) {
   return move[1] * width + move[0];
 }
 
-function actionToMove(action: number, width: number): Move {
+export function actionToMove(action: number, width: number): Move {
   return [action % width, Math.floor(action / width)];
 }
 
 /**
  * Block environment
  */
-export class Block extends Environment<ObservationSpace, ActionSpace, Observation, State, Action, Reward> {
+export class Block extends Environment<Box, ActionSpace, Observation, State, Action, Reward> {
   public observationSpace: ObservationSpace;
-  public actionSpace;
+  public actionSpace: Discrete;
   public game: Game;
   public state: NdArray<number>;
 
@@ -58,14 +59,19 @@ export class Block extends Environment<ObservationSpace, ActionSpace, Observatio
       });
     });
     // next shape
-    this.game.nextShape.points.forEach((row, rowi) => {
-      row.forEach((value, coli) => {
+    // maintain the same shape as the board
+    this.game.board.points.forEach((row, rowi) => {
+      row.forEach((_, coli) => {
+        const value = this.game.nextShape.points[rowi]?.[coli];
+        // this.game.nextShape.points.forEach((row, rowi) => {
         buffer.set(1, rowi, coli, value ? value + 2 : 2);
       });
     });
     // next shape queue
-    this.game.nextShapeQueue.front().points.forEach((row, rowi) => {
-      row.forEach((value, coli) => {
+    this.game.board.points.forEach((row, rowi) => {
+      row.forEach((_, coli) => {
+        const value = this.game.nextShapeQueue.front().points[rowi]?.[coli];
+        // this.game.nextShapeQueue.front().points.forEach((row, rowi) => {
         buffer.set(1, rowi, coli, value ? value + 4 : 4);
       });
     });
@@ -81,19 +87,22 @@ export class Block extends Environment<ObservationSpace, ActionSpace, Observatio
   }
   step(action: Action) {
     const info: any = {};
-    const a = tensorLikeToNdArray(action).get(0);
-    const move = actionToMove(a, this.game.config.width);
-    // console.log('step');
+    const move = actionToMove(action, this.game.config.width);
+    // console.log('');
     // console.log(this.game.getTextOutput());
-    // console.log('TCL ~ a:', a);
+    // console.log(renderShapeAsString(this.game.nextShape));
+    // console.log('TCL ~ action:', action);
     // console.log('TCL ~ move:', move);
+
+    if (!this.actionSpace.contains(action)) {
+      throw new Error(`${action} is invalid action in Block env`);
+    }
 
     let [valid, scoreDelta, coinDelta] = this.game.getNextStateMutate(move);
     if (valid) {
       const [cvalid, cscore, cchip] = this.game.computerMove();
       scoreDelta += cscore;
     }
-    this.state = nj.array(this.game.board.points.flat());
     this.timestep += 1;
     this.globalTimestep += 1;
 
@@ -106,14 +115,14 @@ export class Block extends Environment<ObservationSpace, ActionSpace, Observatio
     //   done = true;
     // }
 
-    let reward = valid ? scoreDelta : -1;
+    let reward = valid ? scoreDelta : -0.01;
     // console.log('TCL ~ reward:', reward);
 
-    if (!this.actionSpace.contains(a)) {
-      throw new Error(`${action} is invalid action in Block env`);
-    }
     this.updateState();
-    // console.log('TCL ~ this.state:', this.state);
+    // console.log(this.game.getTextOutput());
+    // console.log(renderShapeAsString(this.game.nextShape));
+    // console.log('TCL ~ this.state:', this.state.selection.data);
+    // console.log('TCL ~ this.state:', this.state.reshape(this.game.config.height, this.game.config.width, 6).tolist());
     return {
       observation: this.state,
       reward,

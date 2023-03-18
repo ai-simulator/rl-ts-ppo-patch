@@ -158,6 +158,11 @@ export type ShapeSet = {
 const SHAPES_1 = [squareShape, verticalShape, horizontalShape];
 const SHAPES_1_PLUS = [...SHAPES_1, lShape];
 
+export const squareSet: ShapeSet = {
+  shapeSetName: 'Square',
+  shapes: [squareShape],
+};
+
 export const basicSet: ShapeSet = {
   shapeSetName: 'Basic',
   shapes: SHAPES_1,

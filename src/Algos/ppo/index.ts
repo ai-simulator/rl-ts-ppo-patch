@@ -12,6 +12,7 @@ import { ActorCritic } from 'rl-ts/lib/Models/ac';
 import pino from 'pino';
 import { ct } from '../..';
 import { readFileSync } from 'fs';
+import { actionToMove } from 'rl-ts/lib/Environments/examples/Block';
 const log = pino({
   prettyPrint: {
     colorize: true,
@@ -44,8 +45,15 @@ export interface PPOTrainConfigs {
     loss_pi: number;
     loss_vf: number;
     ep_rets: {
+      min: number;
+      max: number;
       mean: number;
       std: number;
+    };
+    ep_rewards: {
+      min: number;
+      max: number;
+      mean: number;
     };
     t: number;
   }): any;
@@ -377,16 +385,29 @@ export class PPO<
     let ep_ret = 0;
     let ep_len = 0;
     let ep_rets: number[] = [];
+    let ep_rewards: number[] = [];
     let same_return_count = 0;
     for (let iteration = 0; iteration < configs.iterations; iteration++) {
       tf.tidy(() => {
         for (let t = 0; t < local_steps_per_iteration; t++) {
           const { a, v, logp_a } = this.ac.step(this.obsToTensor(o));
-          const action = np.tensorLikeToNdArray(this.actionToTensor(a));
+          // // @ts-ignore
+          // console.log('TCL ~ o:', o.selection.data);
+          // console.log('TCL ~ this.obsToTensor(o):', this.obsToTensor(o).arraySync());
+          // console.log('TCL ~ a:', a.arraySync());
+          // console.log('TCL ~ v:', v.arraySync());
+          const action = this.actionToTensor(a) as number;
+          // console.log('TCL ~ action:', action);
+          // console.log('TCL ~ move:', actionToMove(action.selection.data[0], 9));
           const stepInfo = env.step(action);
+          // // @ts-ignore
+          // console.log('TCL ~ stepInfo:', stepInfo.observation.selection.data);
+          // console.log('TCL ~ stepInfo.reward:', stepInfo.reward);
+          // console.log('TCL ~ stepInfo.done:', stepInfo.done);
           const next_o = stepInfo.observation;
 
           let r = stepInfo.reward;
+          ep_rewards.push(r);
           const d = stepInfo.done;
           ep_ret += r;
           ep_len += 1;
@@ -456,12 +477,18 @@ export class PPO<
         mean: nj.mean(ep_rets),
         std: nj.std(ep_rets),
       };
+      const ep_rewards_metrics = {
+        min: nj.min(ep_rewards),
+        max: nj.max(ep_rewards),
+        mean: nj.mean(ep_rewards),
+      };
 
       const msg = `${configs.name} | Iteration ${iteration} metrics: `;
       log.info(
         {
           ...metrics,
           ep_rets: ep_rets_metrics,
+          ep_rewards: ep_rewards_metrics,
         },
         msg
       );
@@ -470,10 +497,12 @@ export class PPO<
         iteration,
         ...metrics,
         ep_rets: ep_rets_metrics,
+        ep_rewards: ep_rewards_metrics,
         t: iteration * local_steps_per_iteration,
       });
 
       ep_rets = [];
+      ep_rewards = [];
     }
   }
 }

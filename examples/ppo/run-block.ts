@@ -3,16 +3,16 @@ import { Block } from '../../src/Environments/examples/Block';
 import * as tf from '@tensorflow/tfjs-node';
 import * as random from '../../src/utils/random';
 import { Game } from '../../src/Environments/examples/Block/model/game';
-import { DEFAULT_CLEAR_LINE_GAME_CONFIG } from '../../src/Environments/examples/Block/model/gameConfig';
+import { DEFAULT_CLEAR_LINE_GAME_CONFIG, SIMPLE_CONFIG } from '../../src/Environments/examples/Block/model/gameConfig';
 
-const RUN = `block-1`;
+const RUN = `block-2`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
 const modelPath = `./models/${RUN}`;
 const savePath = modelPath;
 
-const game = new Game(DEFAULT_CLEAR_LINE_GAME_CONFIG);
+const game = new Game(SIMPLE_CONFIG);
 
 const main = async () => {
   random.seed(0);
@@ -23,7 +23,7 @@ const main = async () => {
   const ac = new RL.Models.MLPActorCritic(env.observationSpace, env.actionSpace, [64, 64]);
   const ppo = new RL.Algos.PPO(makeEnv, ac, {
     actionToTensor: (action: tf.Tensor) => {
-      return action.argMax(1);
+      return action.argMax(1).arraySync()[0];
     },
   });
   await ppo.train({
@@ -38,11 +38,8 @@ const main = async () => {
     vf_coef: 0.5,
     target_kl: 0.02,
     savePath,
-    stepCallback(stepData) {
-      console.log(stepData.step);
-      console.log(game.getTextOutput());
-    },
     iterationCallback(epochData) {
+      summaryWriter.scalar('step_r', epochData.ep_rewards.mean, epochData.t);
       summaryWriter.scalar('reward', epochData.ep_rets.mean, epochData.t);
       // summaryWriter.scalar('delta_pi_loss', epochData.delta_pi_loss, epochData.t);
       // summaryWriter.scalar('delta_vf_loss', epochData.delta_vf_loss, epochData.t);
