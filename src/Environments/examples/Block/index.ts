@@ -46,7 +46,7 @@ export class Block extends Environment<Box, ActionSpace, Observation, State, Act
 
     this.game = configs.game;
     this.state = nj.array(this.game.board.points.flat());
-    this.observationSpace = new Box(0, 1, [configs.game.config.height * configs.game.config.width * 6], 'float32');
+    this.observationSpace = new Box(0, 1, [configs.game.config.height, configs.game.config.width, 6], 'float32');
     this.actionSpace = new Discrete(configs.game.config.height * configs.game.config.width);
   }
 
@@ -76,7 +76,7 @@ export class Block extends Environment<Box, ActionSpace, Observation, State, Act
       });
     });
 
-    this.state = fromTensorSync(buffer.toTensor().flatten());
+    this.state = fromTensorSync(buffer.toTensor());
   }
 
   reset(): State {
@@ -123,6 +123,7 @@ export class Block extends Environment<Box, ActionSpace, Observation, State, Act
     // console.log(renderShapeAsString(this.game.nextShape));
     // console.log('TCL ~ this.state:', this.state.selection.data);
     // console.log('TCL ~ this.state:', this.state.reshape(this.game.config.height, this.game.config.width, 6).tolist());
+    // console.log('TCL ~ reward done:', reward, done);
     return {
       observation: this.state,
       reward,

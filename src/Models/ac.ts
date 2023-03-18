@@ -17,6 +17,17 @@ export const createMLP = (
   gain: number,
   name?: string
 ) => {
+  // const input = tf.input({ shape: [in_dim, in_dim, 6] });
+  // let layer = tf.layers
+  //   .conv2d({
+  //     filters: 64,
+  //     kernelSize: 2,
+  //     strides: 1,
+  //     activation: 'relu',
+  //   })
+  //   .apply(input);
+  // layer = tf.layers.flatten().apply(layer);
+  // layer = tf.layers.dense({ units: hidden_sizes[0], activation }).apply(layer);
   const input = tf.input({ shape: [in_dim] });
   let layer = tf.layers.dense({ units: hidden_sizes[0], activation }).apply(input);
   for (const size of hidden_sizes.slice(1)) {
@@ -86,7 +97,7 @@ export class MLPGaussianActor extends ActorBase<tf.Tensor> {
   constructor(obs_dim: number, public act_dim: number, hidden_sizes: number[], activation: ActivationIdentifier) {
     super();
     this.log_std = tf.variable(
-      tf.ones([act_dim], 'float32').mul(-0.5),
+      tf.zeros([act_dim], 'float32'),
       true,
       `gaussian_actor_log_std_${global_gaussian_actor_log_std_id++}`
     );

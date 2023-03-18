@@ -5,14 +5,20 @@ import * as random from '../../src/utils/random';
 import { Game } from '../../src/Environments/examples/Block/model/game';
 import { DEFAULT_CLEAR_LINE_GAME_CONFIG, SIMPLE_CONFIG } from '../../src/Environments/examples/Block/model/gameConfig';
 
-const RUN = `block-2`;
+const RUN = `block-3-size6`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
 const modelPath = `./models/${RUN}`;
 const savePath = modelPath;
 
-const game = new Game(SIMPLE_CONFIG);
+const game = new Game({
+  ...DEFAULT_CLEAR_LINE_GAME_CONFIG,
+  ...{
+    width: 6,
+    height: 6,
+  },
+});
 
 const main = async () => {
   random.seed(0);
@@ -21,6 +27,7 @@ const main = async () => {
   };
   const env = makeEnv();
   const ac = new RL.Models.MLPActorCritic(env.observationSpace, env.actionSpace, [64, 64]);
+  ac.print();
   const ppo = new RL.Algos.PPO(makeEnv, ac, {
     actionToTensor: (action: tf.Tensor) => {
       return action.argMax(1).arraySync()[0];
@@ -30,7 +37,7 @@ const main = async () => {
     optimizer: tf.train.adam(3e-4, 0.9, 0.999, 1e-8),
     lam: 0.95,
     steps_per_iteration: 2048,
-    iterations: 200,
+    iterations: 2000,
     n_epochs: 10,
     train_pi_iters: 10,
     train_v_iters: 10,
