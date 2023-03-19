@@ -162,7 +162,7 @@ export class PPO<
       try {
         await this.ac.load(configs.savePath);
       } catch (error) {
-        console.log(error);
+        // console.log(error);
         console.log(`failed to load model from ${configs.savePath}`);
       }
     }
