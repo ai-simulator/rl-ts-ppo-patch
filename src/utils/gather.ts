@@ -8,6 +8,8 @@ export function gatherOriginal(input, indices): tf.Tensor {
 export function gatherOwn(input: tf.Tensor, indices: tf.Tensor): tf.Tensor {
   const batchSize = input.shape[0];
   const tensors = input.split(batchSize, 0);
-  const output = tf.stack(tensors.map((tensor, i) => tensor.squeeze().gather(indices.arraySync()[i])));
+  const output = tf.stack(
+    tensors.map((tensor, i) => tensor.squeeze().gather(indices.arraySync()[i]))
+  );
   return output;
 }
