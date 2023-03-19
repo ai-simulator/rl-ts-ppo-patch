@@ -317,6 +317,7 @@ export class PPO<
               clip_frac = pi_info.clip_frac;
 
               const loss_v = compute_loss_vf(batchData);
+              loss_pi_ = loss_pi.arraySync() as number;
               loss_vf_ = loss_v.arraySync() as number;
               return loss_pi.add(loss_v.mul(configs.vf_coef)) as tf.Scalar;
               // return loss_v.mul(configs.vf_coef) as tf.Scalar;
