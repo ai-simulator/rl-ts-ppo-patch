@@ -197,22 +197,29 @@ export class PPO<
       clip_frac: any;
     };
     const compute_loss_pi = (data: PPOBufferComputations, epoch: number): { loss_pi: tf.Tensor; pi_info: pi_info } => {
-      const { obs, act, adv } = data;
-      const logp_old = data.logp;
+      let { obs, act, adv } = data;
       return tf.tidy(() => {
+        const logp_old = data.logp.expandDims(-1);
+        const advE = adv.expandDims(-1);
         // console.log('TCL ~ act:', act);
         const { pi, logp_a } = this.ac.pi.apply(obs, act);
         // console.log('TCL ~ logp_a:', logp_a);
+        // console.log('TCL ~ logp_old:', logp_old);
 
         const ratio = logp_a!.sub(logp_old).exp();
+        // console.log('TCL ~ ratio:', ratio);
 
-        const clip_adv = ratio.clipByValue(1 - clip_ratio, 1 + clip_ratio).mul(adv);
+        const clip_adv = ratio.clipByValue(1 - clip_ratio, 1 + clip_ratio).mul(advE);
+        // console.log('TCL ~ clip_adv:', clip_adv);
 
-        const adv_ratio = ratio.mul(adv);
+        const adv_ratio = ratio.mul(advE);
+        // console.log('TCL ~ adv_ratio:', adv_ratio);
 
         const ratio_and_clip_adv = tf.stack([adv_ratio, clip_adv]);
 
         const loss_pi = ratio_and_clip_adv.min(0).mean().mul(-1);
+        // const loss_pi = tf.tensor(0);
+        // console.log('TCL ~ loss_pi:', loss_pi);
 
         // from stablebaseline3
         const log_ratio = logp_a!.sub(logp_old);
@@ -304,6 +311,7 @@ export class PPO<
 
             const grads = optimizer.computeGradients(() => {
               const { loss_pi, pi_info } = compute_loss_pi(batchData, epoch);
+              // console.log('TCL ~ loss_pi:', loss_pi.arraySync());
               kls.push(pi_info.approx_kl);
               entropy = pi_info.entropy;
               clip_frac = pi_info.clip_frac;
@@ -311,7 +319,9 @@ export class PPO<
               const loss_v = compute_loss_vf(batchData);
               loss_vf_ = loss_v.arraySync() as number;
               return loss_pi.add(loss_v.mul(configs.vf_coef)) as tf.Scalar;
+              // return loss_v.mul(configs.vf_coef) as tf.Scalar;
             });
+            // console.log('TCL ~ grads:', grads);
             if (kls[kls.length - 1] > 1.5 * target_kl) {
               // log.warn(
               //   `${configs.name} | Epoch ${epoch} | Reaching max kl ${kls[kls.length - 1]} / ${1.5 * target_kl}`

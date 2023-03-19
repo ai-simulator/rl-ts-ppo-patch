@@ -31,7 +31,7 @@ const main = async () => {
     n_epochs: 10,
     train_pi_iters: 10,
     train_v_iters: 10,
-    batch_size: 64,
+    batch_size: 11,
     vf_coef: 0.5,
     target_kl: 0.02,
     savePath,

@@ -1,6 +1,7 @@
 import { expect } from 'chai';
 import * as tf from '@tensorflow/tfjs';
 import { Categorical } from '../../../src/utils/Distributions/categorical';
+import { tensorLikeToTensor } from '../../../src/utils/np';
 describe('Test Categorical distribution class', () => {
   it('should sample correctly', () => {
     const logits = tf.tensor([
@@ -33,7 +34,10 @@ describe('Test Categorical distribution class', () => {
     ];
 
     const categorical = new Categorical(logits);
-    const normalizedLogits = categorical.logits.arraySync();
+    // @ts-ignore
+    const normalizedLogits = tensorLikeToTensor(categorical.logits).arraySync();
+    // console.log('TCL ~ normalizedLogits:', normalizedLogits);
+    // console.log('TCL ~ expNormalizedLogits:', expNormalizedLogits);
     for (let i = 0; i < (normalizedLogits as number[]).length; i++) {
       const element = normalizedLogits[i];
       // console.log('TCL ~ element:', element);
@@ -41,7 +45,8 @@ describe('Test Categorical distribution class', () => {
       expect(element[1]).to.be.closeTo(expNormalizedLogits[i][1], 1e-4);
     }
     const values = tf.tensor([0, 0, 1, 1]);
-    const logProbs = categorical.logProb(values).dataSync();
+    const logProbs = categorical.logProb(values).arraySync() as number[];
+    // console.log('TCL ~ logProbs:', logProbs);
     const expectedRes = [-0.8959, -0.8792, -0.9603, -0.7434];
     for (let i = 0; i < logProbs.length; i++) {
       // the computation varies is inconsistently low res
