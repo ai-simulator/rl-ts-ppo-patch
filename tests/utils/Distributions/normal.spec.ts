@@ -8,6 +8,7 @@ describe('Test normal distribution class', () => {
     const normal = new Normal(mean, std);
     const sample = normal.sample();
     const data = sample.dataSync();
+    expect(sample.shape).to.eql([4]);
     for (let i = 0; i < sample.size; i++) {
       expect(data[i]).to.be.lessThan(i + 1 + 1e-1 * 4);
       expect(data[i]).to.be.greaterThan(i + 1 - 1e-1 * 4);

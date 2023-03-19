@@ -2,8 +2,9 @@
 
 - [x] 1 init block env
 - [x] 2 working with simple game config size 4
-- [x] 3 follow sb3 log_std
-- [] add conv
+- [x] 3 follow sb3 log_std, size 6, 2000 iters
+- [] 4 add conv option
+- [] size 9
 - [] bigger config, 5
 
 # PPO pendulum tests

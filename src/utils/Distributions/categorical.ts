@@ -15,7 +15,8 @@ export class Categorical extends Distribution {
     this.logits = tf_logits;
   }
   sample(): tf.Tensor {
-    const sample = tf.buffer([1], 'float32');
+    // console.log('TCL ~ this.logits:', this.logits.shape);
+    const sample = tf.buffer([this.logits.shape[0]], 'float32');
     // console.log('TCL ~ this.logits:', this.logits);
     // console.log('TCL ~ this.logits:', this.logits.arraySync());
     const logits_2d = tf.reshape(this.logits, [-1, this._num_categories(this.logits)]);
@@ -30,7 +31,8 @@ export class Categorical extends Distribution {
     }
     // console.log('TCL ~ sample.toTensor():', sample.toTensor());
     // console.log('TCL ~ sample.toTensor():', sample.toTensor().arraySync());
-    return sample.toTensor().expandDims(0);
+    // console.log('TCL ~ sample.toTensor().expandDims(0):', sample.toTensor().expandDims(0).arraySync());
+    return sample.toTensor();
   }
 
   private _num_categories(logits: tf.Tensor): number {
@@ -38,14 +40,16 @@ export class Categorical extends Distribution {
   }
 
   logProb(value: tf.Tensor): tf.Tensor {
-    let logits = tf.softmax(this.logits_parameter());
+    let logits = this.logits_parameter();
     value = tf.cast(value, 'int32');
     // const boardcastShape = tf.broadcastArgs(value, logits).shape;
     // value = tf.broadcastTo(value, boardcastShape);
     // const log_pmf = tf.broadcastTo(logits, boardcastShape);
-    // value = value.squeeze();
+    value = value.expandDims(-1);
+    // console.log('TCL ~ logits:', logits);
     // console.log('TCL ~ logits:', logits);
     // console.log('TCL ~ logits:', logits.arraySync());
+    // console.log('TCL ~ value:', value);
     // console.log('TCL ~ value:', value.arraySync());
     // console.log('TCL ~ logits.squeeze([-1]):', logits.squeeze());
     // console.log('TCL ~ logits.gather(value):', logits.squeeze().gather(value).arraySync());
@@ -53,7 +57,7 @@ export class Categorical extends Distribution {
     // console.log('TCL ~ logits:', logits.arraySync());
     // console.log('TCL ~ value:', value);
     // console.log('TCL ~ value:', value.arraySync());
-    const logProb = logits.gather(value, 1);
+    const logProb = tf.gather(logits, value, 1, 1);
     // console.log('TCL ~ logProb:', logProb);
     // console.log('TCL ~ logProb:', logProb.arraySync());
     return logProb;

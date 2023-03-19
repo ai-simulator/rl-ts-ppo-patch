@@ -175,17 +175,18 @@ export class PPO<
 
     const env = this.env;
     const obs_dim = env.observationSpace.shape;
-    let act_dim = env.actionSpace.shape;
-    // if (env.actionSpace instanceof Discrete) {
-    //   act_dim = [1];
-    // }
+
+    let buffer_action_dim = env.actionSpace.shape;
+    if (env.actionSpace instanceof Discrete) {
+      buffer_action_dim = [1];
+    }
 
     let local_steps_per_iteration = configs.steps_per_iteration;
 
     const buffer = new PPOBuffer({
       gamma: configs.gamma,
       lam: configs.lam,
-      actDim: act_dim,
+      actDim: buffer_action_dim,
       obsDim: obs_dim,
       size: local_steps_per_iteration,
     });
@@ -199,7 +200,9 @@ export class PPO<
       const { obs, act, adv } = data;
       const logp_old = data.logp;
       return tf.tidy(() => {
+        // console.log('TCL ~ act:', act);
         const { pi, logp_a } = this.ac.pi.apply(obs, act);
+        // console.log('TCL ~ logp_a:', logp_a);
 
         const ratio = logp_a!.sub(logp_old).exp();
 
@@ -295,6 +298,7 @@ export class PPO<
               std: nj.std(batchData.adv.arraySync()),
             };
             batchData.adv = batchData.adv.sub(stats.mean).div(stats.std + 1e-8);
+            // console.log('TCL ~ batchData:', batchData);
 
             batchStartIndex += batchSize;
 
@@ -305,7 +309,6 @@ export class PPO<
               clip_frac = pi_info.clip_frac;
 
               const loss_v = compute_loss_vf(batchData);
-              loss_pi_ = loss_pi.arraySync() as number;
               loss_vf_ = loss_v.arraySync() as number;
               return loss_pi.add(loss_v.mul(configs.vf_coef)) as tf.Scalar;
             });
@@ -393,7 +396,7 @@ export class PPO<
     for (let iteration = 0; iteration < configs.iterations; iteration++) {
       tf.tidy(() => {
         for (let t = 0; t < local_steps_per_iteration; t++) {
-          const { a, v, logp_a } = this.ac.step(this.obsToTensor(o));
+          let { a, v, logp_a } = this.ac.step(this.obsToTensor(o));
           // // @ts-ignore
           // console.log('TCL ~ o:', o.selection.data);
           // console.log('TCL ~ this.obsToTensor(o):', this.obsToTensor(o).arraySync());
@@ -419,6 +422,10 @@ export class PPO<
             const terminalObs = this.obsToTensor(stepInfo.info['terminal_observation']);
             const terminalValue = (this.ac.step(terminalObs).v.arraySync() as number[][])[0][0];
             r += configs.gamma * terminalValue;
+          }
+
+          if (env.actionSpace.meta.discrete) {
+            a = a.reshape([-1, 1]);
           }
 
           buffer.store(

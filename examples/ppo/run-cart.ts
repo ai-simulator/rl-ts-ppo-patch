@@ -3,7 +3,7 @@ import { CartPole } from '../../src/Environments/examples/Cartpole';
 import * as tf from '@tensorflow/tfjs-node';
 import * as random from '../../src/utils/random';
 
-const RUN = `cart-52-batch-64`;
+const RUN = `cart-53-batch-64`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
@@ -16,10 +16,11 @@ const main = async () => {
     return new CartPole();
   };
   const env = makeEnv();
-  const ac = new RL.Models.MLPActorCritic(env.observationSpace, env.actionSpace, [64, 64]);
+  const ac = new RL.Models.MLPActorCritic(env.observationSpace, env.actionSpace, [64, 64], 'tanh', false);
+  ac.print();
   const ppo = new RL.Algos.PPO(makeEnv, ac, {
     actionToTensor: (action: tf.Tensor) => {
-      return action.argMax(1);
+      return action.squeeze();
     },
   });
   await ppo.train({

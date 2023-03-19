@@ -19,12 +19,14 @@ export class Normal extends Distribution {
     this.std = np.tensorLikeToNdArray(tf_std);
   }
   sample(): tf.Tensor {
+    // console.log('TCL ~ this.mean.shape:', this.mean.shape);
     const sample = tf.buffer(this.mean.shape, 'float32');
     for (let i = 0; i < sample.size; i++) {
       const loc = sample.indexToLoc(i);
       const value = tf.randomNormal([1], this.mean.get(...loc), this.std.get(...loc));
       sample.set(value.dataSync()[0], ...loc);
     }
+    // console.log('TCL ~ sample.toTensor():', sample.toTensor().arraySync());
     return sample.toTensor();
   }
   logProb(value: tf.Tensor): tf.Tensor {

@@ -2,7 +2,7 @@ import * as tf from '@tensorflow/tfjs';
 import { SymbolicTensor } from '@tensorflow/tfjs';
 import { ActivationIdentifier } from '@tensorflow/tfjs-layers/dist/keras_format/activation_config';
 import { readFileSync } from 'fs';
-import { Box, Discrete, Space } from 'rl-ts/lib/Spaces';
+import { Box, Discrete, Shape, Space } from 'rl-ts/lib/Spaces';
 import { Distribution } from 'rl-ts/lib/utils/Distributions';
 import { Normal } from 'rl-ts/lib/utils/Distributions/normal';
 import { Categorical } from '../utils/Distributions/categorical';
@@ -11,11 +11,12 @@ let global_gaussian_actor_log_std_id = 0;
 
 /** Create a MLP model */
 export const createMLP = (
-  in_dim: number,
+  in_shape: Shape,
   out_dim: number,
   hidden_sizes: number[],
   activation: ActivationIdentifier,
   gain: number,
+  conv: boolean,
   name?: string
 ) => {
   // const input = tf.input({ shape: [in_dim, in_dim, 6] });
@@ -29,8 +30,26 @@ export const createMLP = (
   //   .apply(input);
   // layer = tf.layers.flatten().apply(layer);
   // layer = tf.layers.dense({ units: hidden_sizes[0], activation }).apply(layer);
-  const input = tf.input({ shape: [in_dim] });
-  let layer = tf.layers.dense({ units: hidden_sizes[0], activation }).apply(input);
+  const input = tf.input({ shape: in_shape });
+  let layer: tf.SymbolicTensor | tf.SymbolicTensor[] | tf.Tensor | tf.Tensor[];
+  if (in_shape.length === 1) {
+    layer = tf.layers.dense({ units: hidden_sizes[0], activation }).apply(input);
+  } else if (conv) {
+    layer = tf.layers
+      .conv2d({
+        filters: 64,
+        kernelSize: 3,
+        strides: 1,
+        activation: 'relu',
+      })
+      .apply(input);
+    layer = tf.layers.flatten().apply(layer);
+    layer = tf.layers.dense({ units: hidden_sizes[0], activation }).apply(layer);
+  } else {
+    layer = tf.layers.flatten().apply(input);
+    layer = tf.layers.dense({ units: hidden_sizes[0], activation }).apply(layer);
+  }
+
   for (const size of hidden_sizes.slice(1)) {
     layer = tf.layers
       .dense({
@@ -39,7 +58,7 @@ export const createMLP = (
         // kernelConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
         // biasConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
         kernelInitializer: tf.initializers.orthogonal({ gain: tf.sqrt(2).arraySync() as number }),
-        // biasInitializer: tf.initializers.zeros(),
+        biasInitializer: tf.initializers.zeros(),
       })
       .apply(layer);
   }
@@ -50,7 +69,7 @@ export const createMLP = (
       // kernelConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
       // biasConstraint: tf.constraints.maxNorm({ maxValue: 0.5, axis: 0 }),
       kernelInitializer: tf.initializers.orthogonal({ gain }),
-      // biasInitializer: tf.initializers.zeros(),
+      biasInitializer: tf.initializers.zeros(),
     })
     .apply(layer);
   return tf.model({ inputs: input, outputs: layer as SymbolicTensor, name });
@@ -96,14 +115,20 @@ export class MLPGaussianActor extends ActorBase<tf.Tensor> {
   public mu_net: tf.LayersModel;
   public log_std: tf.Variable;
   public mu: tf.Variable;
-  constructor(obs_dim: number, public act_dim: number, hidden_sizes: number[], activation: ActivationIdentifier) {
+  constructor(
+    obs_shape: Shape,
+    public act_dim: number,
+    hidden_sizes: number[],
+    activation: ActivationIdentifier,
+    conv: boolean
+  ) {
     super();
     this.log_std = tf.variable(
       tf.zeros([act_dim], 'float32'),
       true,
       `gaussian_actor_log_std_${global_gaussian_actor_log_std_id++}`
     );
-    this.mu_net = createMLP(obs_dim, act_dim, hidden_sizes, activation, 0.01, 'MLP Gaussian Actor');
+    this.mu_net = createMLP(obs_shape, act_dim, hidden_sizes, activation, 0.01, conv, 'MLP Gaussian Actor');
     this.mu = tf.variable(tf.tensor(0));
     this.actor_net = this.mu_net;
   }
@@ -120,9 +145,15 @@ export class MLPGaussianActor extends ActorBase<tf.Tensor> {
 
 export class MLPCategoricalActor extends ActorBase<tf.Tensor> {
   public logits_net: tf.LayersModel;
-  constructor(obs_dim: number, act_dim: number, hidden_sizes: number[], activation: ActivationIdentifier) {
+  constructor(
+    obs_shape: Shape,
+    act_dim: number,
+    hidden_sizes: number[],
+    activation: ActivationIdentifier,
+    conv: boolean
+  ) {
     super();
-    this.logits_net = createMLP(obs_dim, act_dim, hidden_sizes, activation, 0.01);
+    this.logits_net = createMLP(obs_shape, act_dim, hidden_sizes, activation, 0.01, conv);
     this.actor_net = this.logits_net;
   }
   _distribution(obs: tf.Tensor): Distribution {
@@ -130,16 +161,16 @@ export class MLPCategoricalActor extends ActorBase<tf.Tensor> {
     return new Categorical(logits);
   }
   _log_prob_from_distribution(pi: Distribution, act: tf.Tensor<tf.Rank>): tf.Tensor<tf.Rank> {
-    const prob = pi.logProb(act).squeeze();
+    const prob = pi.logProb(act);
     return prob;
   }
 }
 
 export class MLPCritic extends Critic<tf.Tensor> {
   public v_net: tf.LayersModel;
-  constructor(obs_dim: number, hidden_sizes: number[], activation: ActivationIdentifier) {
+  constructor(obs_shape: Shape, hidden_sizes: number[], activation: ActivationIdentifier, conv: boolean) {
     super();
-    this.v_net = createMLP(obs_dim, 1, hidden_sizes, activation, 1, 'MLP Critic');
+    this.v_net = createMLP(obs_shape, 1, hidden_sizes, activation, 1, conv, 'MLP Critic');
   }
   apply(obs: tf.Tensor) {
     // TODO check need squeeze?
@@ -154,24 +185,28 @@ export class MLPActorCritic extends ActorCritic<tf.Tensor> {
     public observationSpace: Space<any>,
     public actionSpace: Space<any>,
     hidden_sizes: number[],
-    activation: ActivationIdentifier = 'tanh'
+    activation: ActivationIdentifier = 'tanh',
+    conv: boolean
   ) {
     super();
-    const obs_dim = observationSpace.shape[0];
     let act_dim = actionSpace.shape[0];
+    // if (actionSpace instanceof Discrete) {
+    //   act_dim = 1;
+    // }
     if (actionSpace instanceof Box) {
-      this.pi = new MLPGaussianActor(obs_dim, act_dim, hidden_sizes, activation);
+      this.pi = new MLPGaussianActor(observationSpace.shape, act_dim, hidden_sizes, activation, conv);
     } else if (actionSpace instanceof Discrete) {
-      // this.pi = new MLPCategoricalActor(obs_dim, act_dim, hidden_sizes, activation);
-      this.pi = new MLPGaussianActor(obs_dim, act_dim, hidden_sizes, activation);
+      this.pi = new MLPCategoricalActor(observationSpace.shape, act_dim, hidden_sizes, activation, conv);
+      // this.pi = new MLPGaussianActor(observationSpace.shape, act_dim, hidden_sizes, activation, conv);
     } else {
       throw new Error('This action space is not supported');
     }
-    this.v = new MLPCritic(obs_dim, hidden_sizes, activation);
+    this.v = new MLPCritic(observationSpace.shape, hidden_sizes, activation, conv);
   }
   step(obs: tf.Tensor) {
     const pi = this.pi._distribution(obs);
     const a = pi.sample();
+    // console.log('TCL ~ a:', a);
     const logp_a = this.pi._log_prob_from_distribution(pi, a);
     const v = this.v.apply(obs);
     return {
