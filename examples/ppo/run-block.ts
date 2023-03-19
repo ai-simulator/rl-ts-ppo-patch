@@ -5,7 +5,7 @@ import * as random from '../../src/utils/random';
 import { Game } from '../../src/Environments/examples/Block/model/game';
 import { DEFAULT_CLEAR_LINE_GAME_CONFIG, SIMPLE_CONFIG } from '../../src/Environments/examples/Block/model/gameConfig';
 
-const RUN = `block-5-size6`;
+const RUN = `block-6-size9`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
@@ -15,8 +15,8 @@ const savePath = modelPath;
 const game = new Game({
   ...DEFAULT_CLEAR_LINE_GAME_CONFIG,
   ...{
-    width: 6,
-    height: 6,
+    width: 9,
+    height: 9,
   },
 });
 
@@ -38,7 +38,7 @@ const main = async () => {
     optimizer: tf.train.adam(3e-4, 0.9, 0.999, 1e-8),
     lam: 0.95,
     steps_per_iteration: 2048,
-    iterations: 2000,
+    iterations: 1000,
     n_epochs: 10,
     train_pi_iters: 10,
     train_v_iters: 10,

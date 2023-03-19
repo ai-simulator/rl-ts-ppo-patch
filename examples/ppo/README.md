@@ -5,7 +5,7 @@
 - [x] 3 follow sb3 log_std, size 6, 2000 iters
 - [x] 4 add conv option
 - [x] 5 size 6, categorical, 2000 iters
-- [] bigger config, 5
+- [] 6 size 9, 1000 iters
 
 # PPO pendulum tests
 
