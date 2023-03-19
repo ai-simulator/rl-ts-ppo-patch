@@ -5,7 +5,7 @@ import * as random from '../../src/utils/random';
 import { Game } from '../../src/Environments/examples/Block/model/game';
 import { DEFAULT_CLEAR_LINE_GAME_CONFIG, SIMPLE_CONFIG } from '../../src/Environments/examples/Block/model/gameConfig';
 
-const RUN = `block-4-size6`;
+const RUN = `block-5-size6`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
@@ -30,7 +30,8 @@ const main = async () => {
   ac.print();
   const ppo = new RL.Algos.PPO(makeEnv, ac, {
     actionToTensor: (action: tf.Tensor) => {
-      return action.argMax(1).arraySync()[0];
+      // console.log('TCL ~ action:', action);
+      return action.squeeze();
     },
   });
   await ppo.train({

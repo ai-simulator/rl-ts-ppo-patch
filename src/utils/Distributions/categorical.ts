@@ -62,9 +62,9 @@ export class Categorical extends Distribution {
     // console.log('TCL ~ logits.gather(value):', logits.squeeze().gather(value).arraySync());
     // console.log('TCL ~ logits:', logits);
     // console.log('TCL ~ logits:', logits.arraySync());
-    // console.log('TCL ~ value:', value);
     // console.log('TCL ~ value:', value.arraySync());
     // console.log('TCL ~ this.tf_logits:', this.tf_logits);
+    // console.log('TCL ~ value:', value);
     // console.log('TCL ~ this.tf_logits:', this.tf_logits.arraySync());
     const logProb = gatherOwn(this.tf_logits, value);
     // const logProb = tf.gather(this.tf_logits, value, 1, 1);

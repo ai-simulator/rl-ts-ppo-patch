@@ -87,14 +87,15 @@ export class Block extends Environment<Box, ActionSpace, Observation, State, Act
   }
   step(action: Action) {
     const info: any = {};
-    const move = actionToMove(action, this.game.config.width);
+    const a = tensorLikeToNdArray(action).get(0);
+    const move = actionToMove(a, this.game.config.width);
     // console.log('');
     // console.log(this.game.getTextOutput());
     // console.log(renderShapeAsString(this.game.nextShape));
     // console.log('TCL ~ action:', action);
     // console.log('TCL ~ move:', move);
 
-    if (!this.actionSpace.contains(action)) {
+    if (!this.actionSpace.contains(a)) {
       throw new Error(`${action} is invalid action in Block env`);
     }
 
