@@ -12,6 +12,7 @@
     "test:ppo": "mocha -r ts-node/register -r tsconfig-paths/register --recursive 'tests/Algos/ppo.spec.ts'",
     "test:normal": "mocha -r ts-node/register -r tsconfig-paths/register --recursive 'tests/utils/Distributions/normal.spec.ts'",
     "test:categorical": "mocha -r ts-node/register -r tsconfig-paths/register --recursive 'tests/utils/Distributions/categorical.spec.ts'",
+    "test:gather": "mocha -r ts-node/register -r tsconfig-paths/register --recursive 'tests/utils/gather.spec.ts'",
     "test:report": "nyc --reporter=html mocha tests/**/*.spec.ts",
     "build:es5": "ttsc --build tsconfig.json && copyfiles -u 1 src/**/*.html src/**/*.css src/**/*.js lib",
     "clean": "rm -rf lib/",

@@ -3,6 +3,7 @@ import nj, { NdArray } from 'ndarray';
 import * as np from 'rl-ts/lib/utils/np';
 import { tensorLikeToNdArray, tensorLikeToTensor } from 'rl-ts/lib/utils/np';
 import { Distribution } from '.';
+import { gatherOwn } from '../gather';
 
 /**
  * A categorical distribution
@@ -65,7 +66,8 @@ export class Categorical extends Distribution {
     // console.log('TCL ~ value:', value.arraySync());
     // console.log('TCL ~ this.tf_logits:', this.tf_logits);
     // console.log('TCL ~ this.tf_logits:', this.tf_logits.arraySync());
-    const logProb = tf.gather(this.tf_logits, value, 1, 1);
+    const logProb = gatherOwn(this.tf_logits, value);
+    // const logProb = tf.gather(this.tf_logits, value, 1, 1);
     // const logProb = tf.tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [11, 1]);
     // console.log('TCL ~ emtpy:', emtpy);
     // console.log('TCL ~ logProb:', logProb);
