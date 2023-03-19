@@ -1,6 +1,6 @@
 import { Agent } from 'rl-ts/lib/Agent';
 import { Environment } from 'rl-ts/lib/Environments';
-import { Space } from 'rl-ts/lib/Spaces';
+import { Discrete, Space } from 'rl-ts/lib/Spaces';
 import * as random from 'rl-ts/lib/utils/random';
 import * as tf from '@tensorflow/tfjs';
 import { PPOBuffer, PPOBufferComputations } from 'rl-ts/lib/Algos/ppo/buffer';
@@ -175,7 +175,10 @@ export class PPO<
 
     const env = this.env;
     const obs_dim = env.observationSpace.shape;
-    const act_dim = env.actionSpace.shape;
+    let act_dim = env.actionSpace.shape;
+    // if (env.actionSpace instanceof Discrete) {
+    //   act_dim = [1];
+    // }
 
     let local_steps_per_iteration = configs.steps_per_iteration;
 

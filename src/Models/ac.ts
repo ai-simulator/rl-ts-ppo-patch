@@ -5,6 +5,7 @@ import { readFileSync } from 'fs';
 import { Box, Discrete, Space } from 'rl-ts/lib/Spaces';
 import { Distribution } from 'rl-ts/lib/utils/Distributions';
 import { Normal } from 'rl-ts/lib/utils/Distributions/normal';
+import { Categorical } from '../utils/Distributions/categorical';
 
 let global_gaussian_actor_log_std_id = 0;
 
@@ -56,6 +57,7 @@ export const createMLP = (
 };
 
 export abstract class Actor<Observation extends tf.Tensor> {
+  public actor_net: tf.LayersModel;
   abstract _distribution(obs: Observation): Distribution;
   abstract _log_prob_from_distribution(pi: Distribution, act: tf.Tensor): tf.Tensor;
   abstract apply(obs: Observation, act: tf.Tensor): { pi: Distribution; logp_a: tf.Tensor | null };
@@ -103,6 +105,7 @@ export class MLPGaussianActor extends ActorBase<tf.Tensor> {
     );
     this.mu_net = createMLP(obs_dim, act_dim, hidden_sizes, activation, 0.01, 'MLP Gaussian Actor');
     this.mu = tf.variable(tf.tensor(0));
+    this.actor_net = this.mu_net;
   }
   _distribution(obs: tf.Tensor) {
     const mu = this.mu_net.apply(obs) as tf.Tensor; // [B, act_dim]
@@ -115,21 +118,20 @@ export class MLPGaussianActor extends ActorBase<tf.Tensor> {
   }
 }
 
-// TODO:
 export class MLPCategoricalActor extends ActorBase<tf.Tensor> {
   public logits_net: tf.LayersModel;
   constructor(obs_dim: number, act_dim: number, hidden_sizes: number[], activation: ActivationIdentifier) {
     super();
     this.logits_net = createMLP(obs_dim, act_dim, hidden_sizes, activation, 0.01);
+    this.actor_net = this.logits_net;
   }
   _distribution(obs: tf.Tensor): Distribution {
-    obs;
-    throw new Error('Method not implemented.');
+    const logits = this.logits_net.apply(obs) as tf.Tensor;
+    return new Categorical(logits);
   }
   _log_prob_from_distribution(pi: Distribution, act: tf.Tensor<tf.Rank>): tf.Tensor<tf.Rank> {
-    pi;
-    act;
-    throw new Error('Method not implemented.');
+    const prob = pi.logProb(act).squeeze();
+    return prob;
   }
 }
 
@@ -146,7 +148,7 @@ export class MLPCritic extends Critic<tf.Tensor> {
 }
 
 export class MLPActorCritic extends ActorCritic<tf.Tensor> {
-  public pi: MLPGaussianActor;
+  public pi: ActorBase<tf.Tensor>;
   public v: MLPCritic;
   constructor(
     public observationSpace: Space<any>,
@@ -156,10 +158,11 @@ export class MLPActorCritic extends ActorCritic<tf.Tensor> {
   ) {
     super();
     const obs_dim = observationSpace.shape[0];
-    const act_dim = actionSpace.shape[0];
+    let act_dim = actionSpace.shape[0];
     if (actionSpace instanceof Box) {
       this.pi = new MLPGaussianActor(obs_dim, act_dim, hidden_sizes, activation);
     } else if (actionSpace instanceof Discrete) {
+      // this.pi = new MLPCategoricalActor(obs_dim, act_dim, hidden_sizes, activation);
       this.pi = new MLPGaussianActor(obs_dim, act_dim, hidden_sizes, activation);
     } else {
       throw new Error('This action space is not supported');
@@ -182,12 +185,12 @@ export class MLPActorCritic extends ActorCritic<tf.Tensor> {
   }
 
   print() {
-    this.pi.mu_net.summary();
+    this.pi.actor_net.summary();
     this.v.v_net.summary();
   }
 
   async save(path: string) {
-    await this.pi.mu_net.save(`file://${path}-pi`);
+    await this.pi.actor_net.save(`file://${path}-pi`);
     await this.v.v_net.save(`file://${path}-v`);
   }
 
@@ -196,7 +199,7 @@ export class MLPActorCritic extends ActorCritic<tf.Tensor> {
     const piContent = JSON.parse(readFileSync(piFsPath).toString());
     console.log('load pi model:', piContent);
     const mu_net = await tf.loadLayersModel(`file://${path}-pi/model.json`);
-    this.pi.mu_net = mu_net;
+    this.pi.actor_net = mu_net;
 
     const vfFsPath = `${path}-v/model.json`;
     const vfFsContent = JSON.parse(readFileSync(vfFsPath).toString());

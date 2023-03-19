@@ -68,6 +68,8 @@ export class PPOBuffer {
     if (this.ptr >= this.maxSize) throw new Error('Experience Buffer has no room');
     const slice = [this.ptr, this.ptr + 1];
     this.obsBuf.slice(slice).assign(obs, false);
+    // console.log('TCL ~ act:', act);
+    // console.log('TCL ~ this.actBuf.slice(slice).shape:', this.actBuf.slice(slice).shape);
     this.actBuf.slice(slice).assign(act, false);
     this.rewBuf.set(this.ptr, rew);
     this.valBuf.set(this.ptr, val);

@@ -2,7 +2,7 @@
 
 - [x] 1 init block env
 - [x] 2 working with simple game config size 4
-- [] 3 follow sb3 log_std
+- [x] 3 follow sb3 log_std
 - [] add conv
 - [] bigger config, 5
 
@@ -45,7 +45,8 @@
 - [x] 47 remove norm limit in init
 - [x] 48 GAE formula
 - [x] 49 fix vf loss high by bootstraping timeout reward
-- [] 50 adjust max kl
+- [x] 50 adjust max kl
+- [x] 52 buggy categorical
 - [] fix unstable results
 
 # regex
