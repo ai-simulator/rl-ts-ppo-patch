@@ -54,3 +54,12 @@
 # regex
 
 ^(?!pen)
+
+# python tfboard
+
+```
+python3.9 -m venv venv
+source venv/bin/activate
+pip install tensorboard==2.12.0
+tensorboard --logdir logs
+```
