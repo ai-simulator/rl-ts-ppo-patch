@@ -8,7 +8,8 @@
 - [x] 6 size 9, 1000 iters
 - [x] 7 size 7, 1000 iters
 - [x] 8 size 8, 1000 iters
-- [] 9 size 9, 1000 iters
+- [x] 9 size 9, 1000 iters
+- [] 10 size 9, expert set
 
 # PPO pendulum tests
 
