@@ -5,7 +5,7 @@ import * as random from '../../src/utils/random';
 import { Game } from '../../src/Environments/examples/Block/model/game';
 import { DEFAULT_CLEAR_LINE_GAME_CONFIG, SIMPLE_CONFIG } from '../../src/Environments/examples/Block/model/gameConfig';
 
-const RUN = `block-8-size8`;
+const RUN = `block-9-size9`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
@@ -15,8 +15,8 @@ const savePath = modelPath;
 const game = new Game({
   ...DEFAULT_CLEAR_LINE_GAME_CONFIG,
   ...{
-    width: 8,
-    height: 8,
+    width: 9,
+    height: 9,
   },
 });
 
