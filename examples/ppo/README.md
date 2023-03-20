@@ -7,6 +7,7 @@
 - [x] 5 size 6, categorical, 2000 iters
 - [x] 6 size 9, 1000 iters
 - [x] 7 size 7, 1000 iters
+- [x] 8 size 8, 1000 iters
 
 # PPO pendulum tests
 
