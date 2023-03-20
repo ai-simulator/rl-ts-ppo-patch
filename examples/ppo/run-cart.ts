@@ -3,7 +3,7 @@ import { CartPole } from '../../src/Environments/examples/Cartpole';
 import * as tf from '@tensorflow/tfjs-node';
 import * as random from '../../src/utils/random';
 
-const RUN = `cart-54-batch-64`;
+const RUN = `cart-55-batch-64`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
@@ -35,7 +35,21 @@ const main = async () => {
     vf_coef: 0.5,
     target_kl: 0.02,
     savePath,
-    iterationCallback(epochData) {
+    iterationCallback: async (epochData) => {
+      let obs = env.reset();
+      let rewards = 0;
+      while (true) {
+        const action = ppo.act(obs);
+        const stepInfo = env.step(action);
+        rewards += stepInfo.reward;
+        if (epochData.iteration > 10) {
+          // after 10 epochs, start rendering the evaluation onto a web viewer
+          await env.render('web', { fps: 60, episode: epochData.iteration });
+        }
+        obs = stepInfo.observation;
+        if (stepInfo.done) break;
+      }
+      console.log(`Episode ${epochData.iteration} - Eval Rewards: ${rewards}`);
       summaryWriter.scalar('reward', epochData.ep_rets.mean, epochData.t);
       // summaryWriter.scalar('delta_pi_loss', epochData.delta_pi_loss, epochData.t);
       // summaryWriter.scalar('delta_vf_loss', epochData.delta_vf_loss, epochData.t);

@@ -49,7 +49,7 @@
 - [x] 49 fix vf loss high by bootstraping timeout reward
 - [x] 50 adjust max kl
 - [x] 52 buggy categorical
-- [] fix unstable results
+- [x] 55 categorical, visual output
 
 # regex
 

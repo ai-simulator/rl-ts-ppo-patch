@@ -8,11 +8,11 @@ import { tensorLikeToNdArray } from 'rl-ts/lib/utils/np';
 /** Vector with shape (2, ) */
 export type State = NdArray<number>;
 /** Vector with shape (3, ) */
-export type Action = NdArray<number>;
+export type Action = NdArray<number> | number;
 export type Observation = NdArray<number>;
 export type ObservationSpace = Box;
 export type Reward = number;
-export type ActionSpace = Box;
+export type ActionSpace = Discrete | Box;
 
 export interface PendulumConfigs {
   /** gravity constant */
@@ -34,7 +34,7 @@ export class Pendulum extends Environment<ObservationSpace, ActionSpace, Observa
   public g = 9.81;
   public m = 1;
   public l = 1;
-  public actionSpace: Box;
+  public actionSpace: Discrete | Box;
   public state: NdArray = random.random([2]);
 
   public maxEpisodeSteps = 200;
@@ -54,8 +54,7 @@ export class Pendulum extends Environment<ObservationSpace, ActionSpace, Observa
     const caps = nj.array([1, 1, this.max_speed], 'float32');
     this.observationSpace = new Box(caps.multiply(-1), caps, caps.shape, 'float32');
     if (configs.discretizeActionSpace) {
-      // this.actionSpace = new Discrete(2);
-      this.actionSpace = new Box(-this.max_torque, this.max_torque, [1], 'float32');
+      this.actionSpace = new Discrete(2);
     } else {
       this.actionSpace = new Box(-this.max_torque, this.max_torque, [1], 'float32');
     }

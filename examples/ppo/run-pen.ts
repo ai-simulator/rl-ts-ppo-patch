@@ -13,14 +13,14 @@ const savePath = modelPath;
 const main = async () => {
   random.seed(0);
   const makeEnv = () => {
-    return new Pendulum();
+    return new Pendulum({ discretizeActionSpace: true });
   };
   const env = makeEnv();
-  const ac = new RL.Models.MLPActorCritic(env.observationSpace, env.actionSpace, [64, 64]);
+  const ac = new RL.Models.MLPActorCritic(env.observationSpace, env.actionSpace, [64, 64], 'tanh', false);
   const ppo = new RL.Algos.PPO(makeEnv, ac, {
-    // actionToTensor: (action: tf.Tensor) => {
-    //   return action.argMax(1);
-    // },
+    actionToTensor: (action: tf.Tensor) => {
+      return action;
+    },
   });
   await ppo.train({
     optimizer: tf.train.adam(3e-4, 0.9, 0.999, 1e-5),
