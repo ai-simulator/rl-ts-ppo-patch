@@ -1,6 +1,5 @@
 import * as tf from '@tensorflow/tfjs';
-import nj, { NdArray } from 'ndarray';
-import * as np from 'rl-ts/lib/utils/np';
+import { NdArray } from 'numjs';
 import { tensorLikeToNdArray, tensorLikeToTensor } from 'rl-ts/lib/utils/np';
 import { Distribution } from '.';
 import { gatherOwn } from '../gather';
@@ -75,7 +74,6 @@ export class Categorical extends Distribution {
     return logProb;
   }
   logits_parameter() {
-    // @ts-ignore
     return tensorLikeToTensor(this.logits);
   }
   entropy() {

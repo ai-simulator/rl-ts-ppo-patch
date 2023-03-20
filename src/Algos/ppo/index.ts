@@ -200,7 +200,7 @@ export class PPO<
       let { obs, act, adv } = data;
       return tf.tidy(() => {
         const logp_old = data.logp.expandDims(-1);
-        const advE = adv.expandDims(-1);
+        const adv_e = adv.expandDims(-1);
         // console.log('TCL ~ act:', act);
         const { pi, logp_a } = this.ac.pi.apply(obs, act);
         // console.log('TCL ~ logp_a:', logp_a);
@@ -209,10 +209,10 @@ export class PPO<
         const ratio = logp_a!.sub(logp_old).exp();
         // console.log('TCL ~ ratio:', ratio);
 
-        const clip_adv = ratio.clipByValue(1 - clip_ratio, 1 + clip_ratio).mul(advE);
+        const clip_adv = ratio.clipByValue(1 - clip_ratio, 1 + clip_ratio).mul(adv_e);
         // console.log('TCL ~ clip_adv:', clip_adv);
 
-        const adv_ratio = ratio.mul(advE);
+        const adv_ratio = ratio.mul(adv_e);
         // console.log('TCL ~ adv_ratio:', adv_ratio);
 
         const ratio_and_clip_adv = tf.stack([adv_ratio, clip_adv]);
