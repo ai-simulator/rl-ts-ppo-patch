@@ -40,7 +40,7 @@ const main = async () => {
     optimizer: tf.train.adam(3e-4, 0.9, 0.999, 1e-8),
     lam: 0.95,
     steps_per_iteration: 2048,
-    iterations: 1000,
+    iterations: 3000,
     n_epochs: 10,
     train_pi_iters: 10,
     train_v_iters: 10,
