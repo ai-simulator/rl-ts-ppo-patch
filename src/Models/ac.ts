@@ -2,10 +2,12 @@ import * as tf from '@tensorflow/tfjs';
 import { SymbolicTensor } from '@tensorflow/tfjs';
 import { ActivationIdentifier } from '@tensorflow/tfjs-layers/dist/keras_format/activation_config';
 import { readFileSync } from 'fs';
+import { NdArray } from 'numjs';
 import { Box, Discrete, Shape, Space } from 'rl-ts/lib/Spaces';
 import { Distribution } from 'rl-ts/lib/utils/Distributions';
 import { Normal } from 'rl-ts/lib/utils/Distributions/normal';
 import { Categorical } from '../utils/Distributions/categorical';
+import { toTensor } from '../utils/np';
 
 let global_gaussian_actor_log_std_id = 0;
 
@@ -77,9 +79,13 @@ export const createMLP = (
 
 export abstract class Actor<Observation extends tf.Tensor> {
   public actor_net: tf.LayersModel;
-  abstract _distribution(obs: Observation): Distribution;
+  abstract _distribution(obs: Observation, actionMask: tf.Tensor): Distribution;
   abstract _log_prob_from_distribution(pi: Distribution, act: tf.Tensor): tf.Tensor;
-  abstract apply(obs: Observation, act: tf.Tensor): { pi: Distribution; logp_a: tf.Tensor | null };
+  abstract apply(
+    obs: Observation,
+    act: tf.Tensor,
+    actionMask?: tf.Tensor
+  ): { pi: Distribution; logp_a: tf.Tensor | null };
 }
 export abstract class Critic<Observation extends tf.Tensor> {
   abstract apply(obs: Observation): tf.Tensor;
@@ -87,19 +93,22 @@ export abstract class Critic<Observation extends tf.Tensor> {
 export abstract class ActorCritic<Observation extends tf.Tensor> {
   abstract pi: Actor<Observation>;
   abstract v: Critic<Observation>;
-  abstract step(obs: Observation): {
+  abstract step(
+    obs: Observation,
+    actionMask?: tf.Tensor
+  ): {
     a: tf.Tensor;
     logp_a: tf.Tensor | null;
     v: tf.Tensor;
   };
-  abstract act(obs: Observation): tf.Tensor;
+  abstract act(obs: Observation, actionMask?: tf.Tensor): tf.Tensor;
   abstract save(path: string): Promise<void>;
   abstract load(path: string): Promise<void>;
 }
 
 export abstract class ActorBase<Observation extends tf.Tensor> extends Actor<Observation> {
-  apply(obs: Observation, act: tf.Tensor | null) {
-    const pi = this._distribution(obs);
+  apply(obs: Observation, act: tf.Tensor | null, actionMask?: tf.Tensor) {
+    const pi = this._distribution(obs, actionMask);
     let logp_a = null;
     if (act !== null) {
       logp_a = this._log_prob_from_distribution(pi, act);
@@ -156,8 +165,11 @@ export class MLPCategoricalActor extends ActorBase<tf.Tensor> {
     this.logits_net = createMLP(obs_shape, act_dim, hidden_sizes, activation, 0.01, conv);
     this.actor_net = this.logits_net;
   }
-  _distribution(obs: tf.Tensor): Distribution {
+  _distribution(obs: tf.Tensor, actionMask: tf.Tensor): Distribution {
     const logits = this.logits_net.apply(obs) as tf.Tensor;
+    if (actionMask) {
+      return new Categorical(logits, tf.cast(actionMask, 'bool'));
+    }
     return new Categorical(logits);
   }
   _log_prob_from_distribution(pi: Distribution, act: tf.Tensor<tf.Rank>): tf.Tensor<tf.Rank> {
@@ -203,8 +215,8 @@ export class MLPActorCritic extends ActorCritic<tf.Tensor> {
     }
     this.v = new MLPCritic(observationSpace.shape, hidden_sizes, activation, conv);
   }
-  step(obs: tf.Tensor) {
-    const pi = this.pi._distribution(obs);
+  step(obs: tf.Tensor, actionMask?: tf.Tensor) {
+    const pi = this.pi._distribution(obs, actionMask);
     const a = pi.sample();
     // console.log('TCL ~ a:', a);
     const logp_a = this.pi._log_prob_from_distribution(pi, a);
@@ -215,8 +227,8 @@ export class MLPActorCritic extends ActorCritic<tf.Tensor> {
       v,
     };
   }
-  act(obs: tf.Tensor) {
-    return this.step(obs).a;
+  act(obs: tf.Tensor, actionMask?: tf.Tensor) {
+    return this.step(obs, actionMask).a;
   }
 
   print() {

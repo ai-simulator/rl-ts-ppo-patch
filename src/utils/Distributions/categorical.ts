@@ -10,12 +10,23 @@ import { gatherOwn } from '../gather';
 export class Categorical extends Distribution {
   public logits: NdArray;
   public tf_logits: tf.Tensor;
+  public mask: tf.Tensor;
 
-  constructor(init_tf_logits: tf.Tensor) {
+  constructor(init_tf_logits: tf.Tensor, mask?: tf.Tensor) {
     super(init_tf_logits.shape, 'Categorical');
+    // console.log('TCL ~ init_tf_logits:', init_tf_logits);
+    // console.log('TCL ~ init_tf_logits:', init_tf_logits.arraySync());
+    if (mask) {
+      // console.log('TCL ~ mask:', mask);
+      // console.log('TCL ~ mask:', mask.arraySync());
+      init_tf_logits = tf.where(mask, tf.tensor(-1e8), init_tf_logits);
+      // console.log('TCL ~ init_tf_logits masked:', init_tf_logits);
+      // console.log('TCL ~ init_tf_logits masked:', init_tf_logits.arraySync());
+    }
     const tf_logits = init_tf_logits.sub(init_tf_logits.logSumExp(-1, true));
     this.logits = tensorLikeToNdArray(tf_logits);
     this.tf_logits = tf_logits;
+    this.mask = mask;
     // console.log('TCL ~ this.tf_logits:', this.tf_logits.arraySync());
     // console.log('TCL ~ this.logits:', this.logits);
   }
@@ -79,6 +90,13 @@ export class Categorical extends Distribution {
   entropy() {
     const probs = tf.softmax(this.logits_parameter());
     const p_log_p = tf.mul(this.logits_parameter(), probs);
+    // console.log('TCL ~ p_log_p:', p_log_p);
+    // console.log('TCL ~ p_log_p:', p_log_p.arraySync());
+    if (this.mask) {
+      p_log_p.where(this.mask, tf.tensor(0));
+      // console.log('TCL ~ p_log_p masked:', p_log_p);
+      // console.log('TCL ~ p_log_p masked:', p_log_p.arraySync());
+    }
     // console.log('TCL ~ tf.neg(p_log_p.sum(-1)):', tf.neg(p_log_p.sum(-1)));
     return tf.neg(p_log_p.sum(-1));
   }

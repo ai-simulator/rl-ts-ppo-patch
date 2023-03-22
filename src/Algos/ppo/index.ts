@@ -13,6 +13,7 @@ import pino from 'pino';
 import { ct } from '../..';
 import { readFileSync } from 'fs';
 import { actionToMove } from 'rl-ts/lib/Environments/examples/Block';
+import { tensorLikeToNdArray } from 'rl-ts/lib/utils/np';
 const log = pino({
   prettyPrint: {
     colorize: true,
@@ -177,6 +178,7 @@ export class PPO<
     const obs_dim = env.observationSpace.shape;
 
     let buffer_action_dim = env.actionSpace.shape;
+    let mask_dim = env.actionSpace.shape;
     if (env.actionSpace instanceof Discrete) {
       buffer_action_dim = [1];
     }
@@ -187,6 +189,7 @@ export class PPO<
       gamma: configs.gamma,
       lam: configs.lam,
       actDim: buffer_action_dim,
+      maskDim: mask_dim,
       obsDim: obs_dim,
       size: local_steps_per_iteration,
     });
@@ -197,12 +200,12 @@ export class PPO<
       clip_frac: any;
     };
     const compute_loss_pi = (data: PPOBufferComputations, epoch: number): { loss_pi: tf.Tensor; pi_info: pi_info } => {
-      let { obs, act, adv } = data;
+      let { obs, act, adv, mask } = data;
       return tf.tidy(() => {
         const logp_old = data.logp.expandDims(-1);
         const adv_e = adv.expandDims(-1);
         // console.log('TCL ~ act:', act);
-        const { pi, logp_a } = this.ac.pi.apply(obs, act);
+        const { pi, logp_a } = this.ac.pi.apply(obs, act, mask);
         // console.log('TCL ~ logp_a:', logp_a);
         // console.log('TCL ~ logp_old:', logp_old);
 
@@ -297,6 +300,7 @@ export class PPO<
               adv: data.adv.gather(indices.slice(batchStartIndex, batchSize)),
               ret: data.ret.gather(indices.slice(batchStartIndex, batchSize)),
               logp: data.logp.gather(indices.slice(batchStartIndex, batchSize)),
+              mask: data.mask.gather(indices.slice(batchStartIndex, batchSize)),
             };
 
             // normalization adv
@@ -399,6 +403,7 @@ export class PPO<
 
     // const start_time = process.hrtime()[0] * 1e6 + process.hrtime()[1];
     let o = env.reset();
+    let invalidMask = env.invalidActionMask();
     let ep_ret = 0;
     let ep_len = 0;
     let ep_rets: number[] = [];
@@ -407,7 +412,10 @@ export class PPO<
     for (let iteration = 0; iteration < configs.iterations; iteration++) {
       tf.tidy(() => {
         for (let t = 0; t < local_steps_per_iteration; t++) {
-          let { a, v, logp_a } = this.ac.step(this.obsToTensor(o));
+          // env.render('ansi');
+          // console.log('TCL ~ invalidMask:', invalidMask);
+          let { a, v, logp_a } = this.ac.step(this.obsToTensor(o), np.toTensor(invalidMask));
+
           // // @ts-ignore
           // console.log('TCL ~ o:', o.selection.data);
           // console.log('TCL ~ this.obsToTensor(o):', this.obsToTensor(o).arraySync());
@@ -415,7 +423,7 @@ export class PPO<
           // console.log('TCL ~ v:', v.arraySync());
           const action = this.actionToTensor(a) as number;
           // console.log('TCL ~ action:', action);
-          // console.log('TCL ~ move:', actionToMove(action.selection.data[0], 9));
+          // console.log('TCL ~ move:', actionToMove(tensorLikeToNdArray(action).get(0), 9));
           const stepInfo = env.step(action);
           // // @ts-ignore
           // console.log('TCL ~ stepInfo:', stepInfo.observation.selection.data);
@@ -431,7 +439,9 @@ export class PPO<
 
           if (d && stepInfo.info && stepInfo.info['TimeLimit.truncated'] && stepInfo.info['terminal_observation']) {
             const terminalObs = this.obsToTensor(stepInfo.info['terminal_observation']);
-            const terminalValue = (this.ac.step(terminalObs).v.arraySync() as number[][])[0][0];
+            const terminalValue = (
+              this.ac.step(terminalObs, np.toTensor(invalidMask)).v.arraySync() as number[][]
+            )[0][0];
             r += configs.gamma * terminalValue;
           }
 
@@ -444,10 +454,12 @@ export class PPO<
             np.tensorLikeToNdArray(a),
             r,
             np.tensorLikeToNdArray(v).get(0, 0),
-            np.tensorLikeToNdArray(logp_a!).get(0, 0)
+            np.tensorLikeToNdArray(logp_a!).get(0, 0),
+            invalidMask.reshape(1, -1)
           );
 
           o = next_o;
+          invalidMask = env.invalidActionMask();
 
           const timeout = ep_len === configs.max_ep_len;
           const terminal = d || timeout;
@@ -458,7 +470,7 @@ export class PPO<
             }
             let v = 0;
             if (timeout || epoch_ended) {
-              v = (this.ac.step(this.obsToTensor(o)).v.arraySync() as number[][])[0][0];
+              v = (this.ac.step(this.obsToTensor(o), np.toTensor(invalidMask)).v.arraySync() as number[][])[0][0];
             }
             buffer.finishPath(v, d);
             if (terminal) {
@@ -466,6 +478,7 @@ export class PPO<
               ep_rets.push(ep_ret);
             }
             o = env.reset();
+            invalidMask = env.invalidActionMask();
             ep_ret = 0;
             ep_len = 0;
           }

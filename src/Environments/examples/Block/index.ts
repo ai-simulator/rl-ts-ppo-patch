@@ -1,14 +1,10 @@
 import { Environment, RenderModes } from 'rl-ts/lib/Environments';
-import path from 'path';
 import { Box, Discrete } from 'rl-ts/lib/Spaces';
 import nj, { NdArray } from 'numjs';
-import * as random from 'rl-ts/lib/utils/random';
 import { fromTensorSync, tensorLikeToNdArray, toTensor } from 'rl-ts/lib/utils/np';
 import { Game } from './model/game';
-import ndarray from 'ndarray';
 import * as tf from '@tensorflow/tfjs';
 import { Move } from './model/move';
-import { renderShapeAsString } from './model/shape';
 
 export type State = NdArray<number>;
 export type Observation = NdArray<number>;
@@ -48,6 +44,15 @@ export class Block extends Environment<Box, ActionSpace, Observation, State, Act
     this.state = nj.array(this.game.board.points.flat());
     this.observationSpace = new Box(0, 1, [configs.game.config.height, configs.game.config.width, 6], 'float32');
     this.actionSpace = new Discrete(configs.game.config.height * configs.game.config.width);
+  }
+
+  invalidActionMask(): NdArray<number> {
+    const validActions = this.game.getValidMoves().map((move) => moveToAction(move, this.game.config.width));
+    const invalidActionMask = nj.ones(this.actionSpace.n);
+    validActions.forEach((action) => {
+      invalidActionMask.set(action, 0);
+    });
+    return invalidActionMask;
   }
 
   updateState(): void {
@@ -116,7 +121,7 @@ export class Block extends Environment<Box, ActionSpace, Observation, State, Act
     //   done = true;
     // }
 
-    let reward = valid ? scoreDelta : -0.1;
+    let reward = valid ? scoreDelta : -1;
     // console.log('TCL ~ reward:', reward);
 
     this.updateState();

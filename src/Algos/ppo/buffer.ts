@@ -7,6 +7,7 @@ import * as ct from 'rl-ts/lib/utils/clusterTools';
 export interface PPOBufferConfigs {
   obsDim: number[];
   actDim: number[];
+  maskDim: number[];
   /** Buffer Size */
   size: number;
   gamma?: number;
@@ -14,6 +15,7 @@ export interface PPOBufferConfigs {
 }
 export interface PPOBufferComputations {
   obs: tf.Tensor;
+  mask: tf.Tensor;
   act: tf.Tensor1D;
   ret: tf.Tensor1D;
   adv: tf.Tensor1D;
@@ -29,6 +31,8 @@ export class PPOBuffer {
   public obsBuf: NdArray;
   /** Actions buffer */
   public actBuf: NdArray;
+  /** Masks buffer */
+  public maskBuf: NdArray;
   /** Advantage estimates buffer */
   public advBuf: NdArray;
   /** Rewards buffer */
@@ -56,6 +60,7 @@ export class PPOBuffer {
     }
 
     this.obsBuf = nj.zeros([configs.size, ...configs.obsDim], 'float32');
+    this.maskBuf = nj.zeros([configs.size, ...configs.maskDim], 'float32');
     this.actBuf = nj.zeros([configs.size, ...configs.actDim], 'float32');
     this.advBuf = nj.zeros([configs.size], 'float32');
     this.rewBuf = nj.zeros([configs.size], 'float32');
@@ -64,10 +69,13 @@ export class PPOBuffer {
     this.logpBuf = nj.zeros([configs.size], 'float32');
     this.maxSize = configs.size;
   }
-  public store(obs: NdArray, act: NdArray, rew: number, val: number, logp: number) {
+  public store(obs: NdArray, act: NdArray, rew: number, val: number, logp: number, mask: NdArray) {
     if (this.ptr >= this.maxSize) throw new Error('Experience Buffer has no room');
     const slice = [this.ptr, this.ptr + 1];
     this.obsBuf.slice(slice).assign(obs, false);
+    // console.log('TCL ~ mask:', mask);
+    // console.log('TCL ~ this.maskBuf.slice(slice):', this.maskBuf.slice(slice));
+    this.maskBuf.slice(slice).assign(mask, false);
     // console.log('TCL ~ act:', act);
     // console.log('TCL ~ this.actBuf.slice(slice).shape:', this.actBuf.slice(slice).shape);
     this.actBuf.slice(slice).assign(act, false);
@@ -131,6 +139,7 @@ export class PPOBuffer {
     // this.advBuf = await np.fromTensor(advBuf);
     return {
       obs: np.toTensor(this.obsBuf),
+      mask: np.toTensor(this.maskBuf),
       act: np.toTensor(this.actBuf) as Tensor1D,
       ret: np.toTensor(this.retBuf) as Tensor1D,
       adv: np.toTensor(this.advBuf) as Tensor1D,

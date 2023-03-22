@@ -1,3 +1,4 @@
+import { NdArray } from 'numjs';
 import { NotImplementedError } from 'rl-ts/lib/Errors';
 import { Space } from 'rl-ts/lib/Spaces';
 import { Viewer } from './viewer';
@@ -70,6 +71,10 @@ export abstract class Environment<
    * Note that the observation is not necessarily required to be of the same type as state.
    */
   abstract step(action: Action): { observation: Observation; reward: Reward; done: boolean; info?: any };
+
+  public invalidActionMask(): NdArray<number> | undefined {
+    return undefined;
+  }
 
   /**
    * Resets the environment to an initial state and return the initial observation
