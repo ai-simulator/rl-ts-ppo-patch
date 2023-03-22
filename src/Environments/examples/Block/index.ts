@@ -116,7 +116,7 @@ export class Block extends Environment<Box, ActionSpace, Observation, State, Act
     //   done = true;
     // }
 
-    let reward = valid ? scoreDelta : -0.01;
+    let reward = valid ? scoreDelta : -1;
     // console.log('TCL ~ reward:', reward);
 
     this.updateState();
