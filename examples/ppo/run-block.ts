@@ -6,7 +6,7 @@ import { Game } from '../../src/Environments/examples/Block/model/game';
 import { DEFAULT_CLEAR_LINE_GAME_CONFIG, SIMPLE_CONFIG } from '../../src/Environments/examples/Block/model/gameConfig';
 import { expertSet } from '../../src/Environments/examples/Block/model/shape';
 
-const RUN = `block-10-size9-expert-set`;
+const RUN = `block-12-size9-expert-set`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
