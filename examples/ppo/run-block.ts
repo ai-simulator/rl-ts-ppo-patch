@@ -6,7 +6,7 @@ import { Game } from '../../src/Environments/examples/Block/model/game';
 import { DEFAULT_CLEAR_LINE_GAME_CONFIG, SIMPLE_CONFIG } from '../../src/Environments/examples/Block/model/gameConfig';
 import { expertSet } from '../../src/Environments/examples/Block/model/shape';
 
-const RUN = `block-13-size9-expert-set-negative1reward`;
+const RUN = `block-14-size9-expert-set-negative0.1`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
@@ -40,7 +40,7 @@ const main = async () => {
     optimizer: tf.train.adam(3e-4, 0.9, 0.999, 1e-8),
     lam: 0.95,
     steps_per_iteration: 2048,
-    iterations: 3000,
+    iterations: 4000,
     n_epochs: 10,
     train_pi_iters: 10,
     train_v_iters: 10,

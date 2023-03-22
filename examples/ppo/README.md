@@ -13,6 +13,7 @@
 - [x] 11 size 9, expert set, more conv filters and larger conv kernel, relu -> not good
 - [x] 12 size 9, expert set, 3000 iters
 - [x] 13 negative 1 penalty
+- [x] 14 negative -0.1 penalty, 4000 iters
 - [] size 8 expert set
 
 # PPO pendulum tests
