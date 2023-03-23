@@ -62,7 +62,8 @@
   },
   "files": [
     "lib/",
-    "lib-es5/"
+    "lib-es5/",
+    "!lib/Environments/examples/Block/"
   ],
   "dependencies": {
     "@tensorflow/tfjs": "^3.13.0",
