@@ -39,6 +39,7 @@ export class CartPole extends Environment<ObservationSpace, ActionSpace, Observa
   public timestep = 0;
   public maxEpisodeSteps = 500;
   public globalTimestep = 0;
+  public _invalidActionMask: NdArray<number>;
 
   constructor(configs: Partial<CartPoleConfigs> = {}) {
     super('CartPole');
@@ -52,6 +53,7 @@ export class CartPole extends Environment<ObservationSpace, ActionSpace, Observa
     );
     this.observationSpace = new Box(caps.multiply(-1), caps, caps.shape, 'float32');
     this.actionSpace = new Discrete(2);
+    this._invalidActionMask = nj.zeros(this.actionSpace.n);
   }
   reset(): State {
     this.state = random.random([4], -0.05, 0.05);
@@ -59,6 +61,11 @@ export class CartPole extends Environment<ObservationSpace, ActionSpace, Observa
     this.timestep = 0;
     return this.state;
   }
+
+  invalidActionMask(): NdArray<number> {
+    return this._invalidActionMask;
+  }
+
   step(action: Action) {
     let reward = 1;
     const info: any = {};

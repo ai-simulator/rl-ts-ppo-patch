@@ -27,7 +27,7 @@ describe('Test DQN', () => {
       targetNet,
     });
 
-    const evaluationRewards = [];
+    const evaluationRewards: number[] = [];
     const evaluateModel = () => {
       let state = dqn.env.reset();
       let reward = 0;
