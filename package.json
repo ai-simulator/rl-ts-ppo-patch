@@ -1,5 +1,5 @@
 {
-  "name": "rl-ts",
+  "name": "rl-ts-ppo-patch",
   "version": "0.0.11",
   "description": "",
   "main": "lib/index.js",
