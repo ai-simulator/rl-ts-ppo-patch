@@ -16,6 +16,7 @@
 - [x] 14 negative -0.1 penalty, 4000 iters
 - [x] 15 invalid action masking
 - [x] 16 record fps and best ever reward
+- [x] 17 split rollout and train stats
 - [] size 8 expert set
 
 # PPO pendulum tests

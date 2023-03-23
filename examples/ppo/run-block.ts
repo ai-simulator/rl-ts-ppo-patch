@@ -6,7 +6,7 @@ import { Game } from '../../src/Environments/examples/Block/model/game';
 import { DEFAULT_CLEAR_LINE_GAME_CONFIG, SIMPLE_CONFIG } from '../../src/Environments/examples/Block/model/gameConfig';
 import { expertSet } from '../../src/Environments/examples/Block/model/shape';
 
-const RUN = `block-16-size9-expert-set-invalid-mask`;
+const RUN = `block-17-size9-expert-set-invalid-mask`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
@@ -59,6 +59,10 @@ const main = async () => {
       summaryWriter.scalar('kl', epochData.kl, epochData.t);
       summaryWriter.scalar('entropy', epochData.entropy, epochData.t);
       summaryWriter.scalar('fps', epochData.fps, epochData.t);
+      summaryWriter.scalar('fps_rollout', epochData.fps_rollout, epochData.t);
+      summaryWriter.scalar('fps_train', epochData.fps_train, epochData.t);
+      summaryWriter.scalar('duration_rollout', epochData.duration_rollout, epochData.t);
+      summaryWriter.scalar('duration_train', epochData.duration_train, epochData.t);
     },
   });
 };

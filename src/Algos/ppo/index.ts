@@ -59,6 +59,10 @@ export interface PPOTrainConfigs {
     };
     t: number;
     fps: number;
+    fps_rollout: number;
+    fps_train: number;
+    duration_rollout: number;
+    duration_train: number;
   }): any;
   optimizer: tf.Optimizer;
   vf_coef: number;
@@ -280,7 +284,7 @@ export class PPO<
         let kls: number[] = [];
         let entropy = 0;
         let clip_frac = 0;
-        let trained_pi_iters = 0;
+        let trained_epoches = 0;
 
         // let loss_pi_old = compute_loss_pi(data, 0).loss_pi.arraySync() as number;
         // let loss_vf_old = compute_loss_vf(data).arraySync() as number;
@@ -379,7 +383,7 @@ export class PPO<
             optimizer.applyGradients(clippedGrads);
             batch++;
           }
-          trained_pi_iters++;
+          trained_epoches++;
           if (!continueTraining) {
             break;
           }
@@ -392,7 +396,7 @@ export class PPO<
           kl: nj.mean(nj.array(kls)),
           entropy,
           clip_frac,
-          trained_pi_iters,
+          trained_epoches,
           loss_pi: loss_pi_,
           loss_vf: loss_vf_,
           // delta_pi_loss: loss_pi - loss_pi_old,
@@ -411,9 +415,10 @@ export class PPO<
     let ep_rets: number[] = [];
     let ep_rewards: number[] = [];
     let same_return_count = 0;
-    let startTime = Date.now();
     let bestEver = 0;
     for (let iteration = 0; iteration < configs.iterations; iteration++) {
+      const startTime = Date.now();
+      const rolloutStartTime = Date.now();
       tf.tidy(() => {
         for (let t = 0; t < local_steps_per_iteration; t++) {
           // env.render('ansi');
@@ -489,8 +494,14 @@ export class PPO<
         }
       });
 
+      const rollOutDuration = (Date.now() - rolloutStartTime) / 1000;
+      const updateStartTime = Date.now();
+
       // update actor critic
       const metrics = await update();
+
+      const trainDuration = (Date.now() - updateStartTime) / 1000;
+      const totalDuration = (Date.now() - startTime) / 1000;
 
       // collect metrics
       let isBestEver = false;
@@ -499,6 +510,15 @@ export class PPO<
         bestEver = ep_max;
         isBestEver = true;
       }
+
+      const perfMetrics = {
+        t: iteration * configs.steps_per_iteration,
+        fps: configs.steps_per_iteration / totalDuration,
+        duration_rollout: rollOutDuration,
+        duration_train: trainDuration,
+        fps_rollout: configs.steps_per_iteration / rollOutDuration,
+        fps_train: (configs.steps_per_iteration * metrics.trained_epoches) / trainDuration,
+      };
 
       // save model
       if (ep_rets.every((ret) => ret === ep_rets[0])) {
@@ -536,11 +556,6 @@ export class PPO<
         mean: nj.mean(ep_rewards),
       };
 
-      const perfMetrics = {
-        t: iteration * configs.steps_per_iteration,
-        fps: configs.steps_per_iteration / ((Date.now() - startTime) / 1000),
-      };
-
       const msg = `${configs.name} | Iteration ${iteration} metrics: `;
       log.info(
         {
@@ -562,7 +577,6 @@ export class PPO<
 
       ep_rets = [];
       ep_rewards = [];
-      startTime = Date.now();
     }
   }
 }
