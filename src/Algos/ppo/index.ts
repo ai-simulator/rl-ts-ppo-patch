@@ -46,6 +46,7 @@ export interface PPOTrainConfigs {
     loss_pi: number;
     loss_vf: number;
     ep_rets: {
+      bestEver: number;
       min: number;
       max: number;
       mean: number;
@@ -57,6 +58,7 @@ export interface PPOTrainConfigs {
       mean: number;
     };
     t: number;
+    fps: number;
   }): any;
   optimizer: tf.Optimizer;
   vf_coef: number;
@@ -409,6 +411,8 @@ export class PPO<
     let ep_rets: number[] = [];
     let ep_rewards: number[] = [];
     let same_return_count = 0;
+    let startTime = Date.now();
+    let bestEver = 0;
     for (let iteration = 0; iteration < configs.iterations; iteration++) {
       tf.tidy(() => {
         for (let t = 0; t < local_steps_per_iteration; t++) {
@@ -485,30 +489,45 @@ export class PPO<
         }
       });
 
+      // update actor critic
+      const metrics = await update();
+
+      // collect metrics
+      let isBestEver = false;
+      const ep_max = nj.max(ep_rets);
+      if (ep_max > bestEver) {
+        bestEver = ep_max;
+        isBestEver = true;
+      }
+
       // save model
       if (ep_rets.every((ret) => ret === ep_rets[0])) {
         same_return_count++;
         log.warn(`${configs.name} | Episode returns are the same for ${same_return_count} times`);
-        if (same_return_count > 40) {
-          if (configs.savePath) {
-            log.warn(
-              `${configs.name} | Early stopping at iteration ${iteration} due to all episode returns are the same`
-            );
-            console.log('saving model to', configs.savePath);
-            await this.ac.save(configs.savePath);
-          }
-          break;
-        }
       } else {
         same_return_count = 0;
       }
 
-      // update actor critic
-      const metrics = await update();
+      if (configs.savePath) {
+        if (same_return_count > 40) {
+          log.warn(
+            `${configs.name} | Early stopping at iteration ${iteration} due to all episode returns are the same`
+          );
+          console.log('saving model to', configs.savePath);
+          await this.ac.save(configs.savePath);
+          break;
+        } else if (isBestEver) {
+          log.warn(`${configs.name} | Saving best model at iteration ${iteration} with return ${bestEver}`);
+          console.log('saving model to', configs.savePath);
+          await this.ac.save(configs.savePath);
+        }
+      }
+
       const ep_rets_metrics = {
         min: nj.min(ep_rets),
-        max: nj.max(ep_rets),
+        max: ep_max,
         mean: nj.mean(ep_rets),
+        bestEver,
         std: nj.std(ep_rets),
       };
       const ep_rewards_metrics = {
@@ -517,12 +536,18 @@ export class PPO<
         mean: nj.mean(ep_rewards),
       };
 
+      const perfMetrics = {
+        t: iteration * configs.steps_per_iteration,
+        fps: configs.steps_per_iteration / ((Date.now() - startTime) / 1000),
+      };
+
       const msg = `${configs.name} | Iteration ${iteration} metrics: `;
       log.info(
         {
           ...metrics,
           ep_rets: ep_rets_metrics,
           ep_rewards: ep_rewards_metrics,
+          ...perfMetrics,
         },
         msg
       );
@@ -532,11 +557,12 @@ export class PPO<
         ...metrics,
         ep_rets: ep_rets_metrics,
         ep_rewards: ep_rewards_metrics,
-        t: iteration * local_steps_per_iteration,
+        ...perfMetrics,
       });
 
       ep_rets = [];
       ep_rewards = [];
+      startTime = Date.now();
     }
   }
 }
