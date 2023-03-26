@@ -10,7 +10,6 @@ import * as np from 'rl-ts/lib/utils/np';
 import { Scalar } from '@tensorflow/tfjs';
 import { NdArray } from 'numjs';
 import pino from 'pino';
-import * as ct from 'rl-ts/lib/utils/clusterTools';
 const log = pino({
   prettyPrint: {
     colorize: true,
@@ -151,9 +150,6 @@ export class DQN<
     };
     configs = deepMerge(configs, trainConfigs);
     log.level = configs.verbosity;
-    if (ct.id() === 0) {
-      log.info(configs, `${configs.name} | Beginning training with configs`);
-    }
 
     const { optimizer, gamma } = configs;
     let state = this.env.reset();
@@ -189,7 +185,7 @@ export class DQN<
           optimizer,
         });
       }
-      if (configs.savePath && configs.saveLocation && ct.id() === 0) {
+      if (configs.savePath && configs.saveLocation) {
         if (t >= configs.learningStarts && t % configs.ckptFreq === 0) {
           // save policy and target net models.
           const policyNetSavePath = `${configs.saveLocation}://${configs.savePath}/policynet-${t}`;

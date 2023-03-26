@@ -6,4 +6,3 @@ export * as Algos from './Algos';
 export { DP } from './DP';
 export * as random from './utils/random';
 export * as Models from './Models';
-export * as ct from './utils/clusterTools';
