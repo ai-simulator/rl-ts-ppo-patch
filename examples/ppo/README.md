@@ -17,7 +17,7 @@
 - [x] 15 invalid action masking
 - [x] 16 record fps and best ever reward
 - [x] 17 split rollout and train stats
-- [] size 8 expert set
+- [x] 18 reproduce results
 
 # PPO pendulum tests
 
