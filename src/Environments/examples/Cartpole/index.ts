@@ -1,6 +1,5 @@
-import { Environment, RenderModes } from 'rl-ts/lib/Environments';
-import path from 'path';
-import { Box, Discrete } from 'rl-ts/lib/Spaces';
+import { Environment, RenderModes } from '../../../Environments';
+import { Box, Discrete } from '../../../Spaces';
 import nj, { NdArray } from 'numjs';
 import * as random from 'rl-ts/lib/utils/random';
 import { tensorLikeToNdArray } from 'rl-ts/lib/utils/np';
@@ -139,7 +138,7 @@ export class CartPole extends Environment<ObservationSpace, ActionSpace, Observa
     configs: { fps: number; episode?: number; rewards?: number } = { fps: 60 }
   ): Promise<void> {
     if (mode === 'web') {
-      if (!this.viewer.isInitialized()) await this.viewer.initialize(path.join(__dirname, '../'), 'cartpole/');
+      // if (!this.viewer.isInitialized()) await this.viewer.initialize(path.join(__dirname, '../'), 'cartpole/');
       const delayMs = 1 / (configs.fps / 1000);
       await this.sleep(delayMs);
       await this.updateViewer(this.state, {

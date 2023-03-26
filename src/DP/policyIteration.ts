@@ -1,5 +1,5 @@
 import { Agent } from 'rl-ts/lib/Agent';
-import { Dynamics, Environment, RepToState, StateToRep } from 'rl-ts/lib/Environments';
+import { Dynamics, Environment, RepToState, StateToRep } from '../Environments';
 import { Space } from 'rl-ts/lib/Spaces';
 import seedrandom from 'seedrandom';
 import { prng } from 'rl-ts/lib/utils/random';

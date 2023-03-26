@@ -1,5 +1,5 @@
 import { Agent } from 'rl-ts/lib/Agent';
-import { Environment } from 'rl-ts/lib/Environments';
+import { Environment } from '../../Environments';
 import { Space } from 'rl-ts/lib/Spaces';
 import * as random from 'rl-ts/lib/utils/random';
 import * as tf from '@tensorflow/tfjs';
