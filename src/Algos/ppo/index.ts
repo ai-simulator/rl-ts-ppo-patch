@@ -10,10 +10,6 @@ import * as np from 'rl-ts/lib/utils/np';
 import nj, { NdArray } from 'numjs';
 import { ActorCritic } from 'rl-ts/lib/Models/ac';
 import pino from 'pino';
-import { ct } from '../..';
-import { readFileSync } from 'fs';
-import { actionToMove } from 'rl-ts/lib/Environments/examples/Block';
-import { tensorLikeToNdArray } from 'rl-ts/lib/utils/np';
 const log = pino({
   prettyPrint: {
     colorize: true,
@@ -41,8 +37,6 @@ export interface PPOTrainConfigs {
     iteration: number;
     kl: number;
     entropy: number;
-    // delta_pi_loss: number;
-    // delta_vf_loss: number;
     loss_pi: number;
     loss_vf: number;
     ep_rets: {
@@ -139,7 +133,7 @@ export class PPO<
     return np.tensorLikeToNdArray(this.actionToTensor(this.ac.act(this.obsToTensor(observation))));
   }
 
-  public async train(trainConfigs: Partial<PPOTrainConfigs>) {
+  public train(trainConfigs: Partial<PPOTrainConfigs>) {
     let configs: PPOTrainConfigs = {
       optimizer: tf.train.adam(3e-4, 0.9, 0.999, 1e-8),
       vf_coef: 0.5,
@@ -163,16 +157,6 @@ export class PPO<
     };
     configs = deepMerge(configs, trainConfigs);
     log.level = configs.verbosity;
-
-    // try to load model
-    if (configs.savePath) {
-      try {
-        await this.ac.load(configs.savePath);
-      } catch (error) {
-        // console.log(error);
-        console.log(`failed to load model from ${configs.savePath}`);
-      }
-    }
 
     const { clip_ratio, optimizer, target_kl } = configs;
 
@@ -210,38 +194,22 @@ export class PPO<
       return tf.tidy(() => {
         const logp_old = data.logp.expandDims(-1);
         const adv_e = adv.expandDims(-1);
-        // console.log('TCL ~ act:', act);
         const { pi, logp_a } = this.ac.pi.apply(obs, act, mask);
-        // console.log('TCL ~ logp_a:', logp_a);
-        // console.log('TCL ~ logp_old:', logp_old);
 
         const ratio = logp_a!.sub(logp_old).exp();
-        // console.log('TCL ~ ratio:', ratio);
 
         const clip_adv = ratio.clipByValue(1 - clip_ratio, 1 + clip_ratio).mul(adv_e);
-        // console.log('TCL ~ clip_adv:', clip_adv);
 
         const adv_ratio = ratio.mul(adv_e);
-        // console.log('TCL ~ adv_ratio:', adv_ratio);
 
         const ratio_and_clip_adv = tf.stack([adv_ratio, clip_adv]);
 
         const loss_pi = ratio_and_clip_adv.min(0).mean().mul(-1);
-        // const loss_pi = tf.tensor(0);
-        // console.log('TCL ~ loss_pi:', loss_pi);
 
         // from stablebaseline3
         const log_ratio = logp_a!.sub(logp_old);
         const approx_kl = log_ratio.exp().sub(1).sub(log_ratio).mean().arraySync() as number;
 
-        if (ratio.size === 64) {
-          // console.log('TCL ~ logp_old:', logp_old.arraySync());
-          // console.log('TCL ~ logp_a:', logp_a!.arraySync());
-          // console.log('TCL ~ log_ratio:', log_ratio.arraySync());
-          // console.log(epoch, 'TCL ~ approx_kl:', approx_kl);
-          // console.log("TCL ~ adv:", adv.arraySync())
-          // console.log('TCL ~ ratio:', ratio.arraySync());
-        }
         const entropy = pi.entropy().mean().arraySync() as number;
         const clipped = ratio
           .greater(1 + clip_ratio)
@@ -263,19 +231,11 @@ export class PPO<
       const { obs, ret } = data;
       return tf.tidy(() => {
         const predict = this.ac.v.apply(obs).flatten();
-        // if (data.ret.size === 64) {
-        //   console.log('TCL ~ ret:', ret);
-        //   console.log('TCL ~ obs:', obs.arraySync());
-        //   console.log('TCL ~ ret:', ret.arraySync());
-        //   console.log('TCL ~ predict:', predict.arraySync());
-        //   console.log('TCL ~ predict.sub(ret).pow(2):', predict.sub(ret).pow(2));
-        //   console.log('TCL ~ predict.sub(ret).pow(2):', predict.sub(ret).pow(2).arraySync());
-        // }
         return predict.sub(ret).pow(2).mean();
       });
     };
 
-    const update = async () => {
+    const update = () => {
       return tf.tidy(() => {
         const data = buffer.get();
         const totalSize = configs.steps_per_iteration;
@@ -285,9 +245,6 @@ export class PPO<
         let entropy = 0;
         let clip_frac = 0;
         let trained_epoches = 0;
-
-        // let loss_pi_old = compute_loss_pi(data, 0).loss_pi.arraySync() as number;
-        // let loss_vf_old = compute_loss_vf(data).arraySync() as number;
 
         let loss_pi_ = 0;
         let loss_vf_ = 0;
@@ -315,13 +272,11 @@ export class PPO<
               std: nj.std(batchData.adv.arraySync()),
             };
             batchData.adv = batchData.adv.sub(stats.mean).div(stats.std + 1e-8);
-            // console.log('TCL ~ batchData:', batchData);
 
             batchStartIndex += batchSize;
 
             const grads = optimizer.computeGradients(() => {
               const { loss_pi, pi_info } = compute_loss_pi(batchData, epoch);
-              // console.log('TCL ~ loss_pi:', loss_pi.arraySync());
               kls.push(pi_info.approx_kl);
               entropy = pi_info.entropy;
               clip_frac = pi_info.clip_frac;
@@ -330,13 +285,8 @@ export class PPO<
               loss_pi_ = loss_pi.arraySync() as number;
               loss_vf_ = loss_v.arraySync() as number;
               return loss_pi.add(loss_v.mul(configs.vf_coef)) as tf.Scalar;
-              // return loss_v.mul(configs.vf_coef) as tf.Scalar;
             });
-            // console.log('TCL ~ grads:', grads);
             if (kls[kls.length - 1] > 1.5 * target_kl) {
-              // log.warn(
-              //   `${configs.name} | Epoch ${epoch} | Reaching max kl ${kls[kls.length - 1]} / ${1.5 * target_kl}`
-              // );
               log.warn(
                 `${configs.name} | Early stopping at epoch ${epoch} batch ${batch}/${Math.floor(
                   totalSize / batchSize
@@ -346,39 +296,13 @@ export class PPO<
               break;
             }
 
-            // function clipGradNorm(grads: tf.Tensor, maxNorm: number) {
-            //   const gradNorm = tf.norm(grads);
-            //   const clipNorm = tf.maximum(gradNorm, maxNorm);
-            //   const clippedGrads = grads.mul(clipNorm.div(gradNorm));
-            //   return clippedGrads;
-            // }
-
             const maxNorm = 0.5;
             const clippedGrads: tf.NamedTensorMap = {};
-            // const norm = tf.norm(Object.values(grads.grads));
             const totalNorm = tf.norm(tf.stack(Object.values(grads.grads).map((grad) => tf.norm(grad))));
-            // console.log('TCL ~ totalNorm:', totalNorm.arraySync());
             const clipCoeff = tf.minimum(tf.scalar(1.0), tf.scalar(maxNorm).div(totalNorm.add(1e-6)));
-            // console.log('TCL ~ clipCoeff:', clipCoeff.arraySync());
-            // const clippedGrads = tf.mul(grads.grads, scale);
             Object.keys(grads.grads).forEach((name) => {
-              // clippedGrads[name] = clipGradNorm(grads[name], 0.5);
               clippedGrads[name] = tf.mul(grads.grads[name], clipCoeff);
             });
-
-            // console.log(
-            //   'TCL ~ grads:',
-            //   Object.entries(grads.grads).map(([key, value]) => ({ key, value: value.arraySync() }))
-            // );
-
-            // for (const key in grads.grads) {
-            //   if (Object.prototype.hasOwnProperty.call(grads.grads, key)) {
-            //     const element = grads.grads[key];
-            //     const clippedGrads = element.clipByValue(-0.01, 0.01);
-            //     grads.grads[key] = clippedGrads;
-            //     // console.log('TCL ~ element:', element);
-            //   }
-            // }
 
             optimizer.applyGradients(clippedGrads);
             batch++;
@@ -389,9 +313,6 @@ export class PPO<
           }
         }
 
-        // let loss_pi = compute_loss_pi(data, 0).loss_pi.arraySync() as number;
-        // let loss_vf = compute_loss_vf(data).arraySync() as number;
-
         const metrics = {
           kl: nj.mean(nj.array(kls)),
           entropy,
@@ -399,15 +320,12 @@ export class PPO<
           trained_epoches,
           loss_pi: loss_pi_,
           loss_vf: loss_vf_,
-          // delta_pi_loss: loss_pi - loss_pi_old,
-          // delta_vf_loss: loss_vf - loss_vf_old,
         };
 
         return metrics;
       });
     };
 
-    // const start_time = process.hrtime()[0] * 1e6 + process.hrtime()[1];
     let o = env.reset();
     let invalidMask = env.invalidActionMask();
     let ep_ret = 0;
@@ -421,23 +339,10 @@ export class PPO<
       const rolloutStartTime = Date.now();
       tf.tidy(() => {
         for (let t = 0; t < local_steps_per_iteration; t++) {
-          // env.render('ansi');
-          // console.log('TCL ~ invalidMask:', invalidMask);
           let { a, v, logp_a } = this.ac.step(this.obsToTensor(o), np.toTensor(invalidMask));
 
-          // // @ts-ignore
-          // console.log('TCL ~ o:', o.selection.data);
-          // console.log('TCL ~ this.obsToTensor(o):', this.obsToTensor(o).arraySync());
-          // console.log('TCL ~ a:', a.arraySync());
-          // console.log('TCL ~ v:', v.arraySync());
           const action = this.actionToTensor(a) as number;
-          // console.log('TCL ~ action:', action);
-          // console.log('TCL ~ move:', actionToMove(tensorLikeToNdArray(action).get(0), 9));
           const stepInfo = env.step(action);
-          // // @ts-ignore
-          // console.log('TCL ~ stepInfo:', stepInfo.observation.selection.data);
-          // console.log('TCL ~ stepInfo.reward:', stepInfo.reward);
-          // console.log('TCL ~ stepInfo.done:', stepInfo.done);
           const next_o = stepInfo.observation;
 
           let r = stepInfo.reward;
@@ -498,7 +403,7 @@ export class PPO<
       const updateStartTime = Date.now();
 
       // update actor critic
-      const metrics = await update();
+      const metrics = update();
 
       const trainDuration = (Date.now() - updateStartTime) / 1000;
       const totalDuration = (Date.now() - startTime) / 1000;
@@ -528,21 +433,6 @@ export class PPO<
         same_return_count = 0;
       }
 
-      if (configs.savePath) {
-        if (same_return_count > 40) {
-          log.warn(
-            `${configs.name} | Early stopping at iteration ${iteration} due to all episode returns are the same`
-          );
-          console.log('saving model to', configs.savePath);
-          await this.ac.save(configs.savePath);
-          break;
-        } else if (isBestEver) {
-          log.warn(`${configs.name} | Saving best model at iteration ${iteration} with return ${bestEver}`);
-          console.log('saving model to', configs.savePath);
-          await this.ac.save(configs.savePath);
-        }
-      }
-
       const ep_rets_metrics = {
         min: nj.min(ep_rets),
         max: ep_max,
@@ -567,7 +457,7 @@ export class PPO<
         msg
       );
       // console.log('numTensors', tf.memory().numTensors);
-      await configs.iterationCallback({
+      configs.iterationCallback({
         iteration,
         ...metrics,
         ep_rets: ep_rets_metrics,
