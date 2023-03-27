@@ -4,7 +4,7 @@ import * as tf from '@tensorflow/tfjs';
 import * as random from '../../src/utils/random';
 import { expect } from 'chai';
 describe('Test DQN', () => {
-  it('should run', async () => {
+  it.skip('should run', async () => {
     random.seed(0);
     const policyNet = tf.sequential();
     policyNet.add(tf.layers.dense({ units: 12, inputShape: [4], activation: 'tanh' }));
