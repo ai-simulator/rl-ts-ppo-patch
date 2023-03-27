@@ -108,6 +108,7 @@ export class PPO<
   private actionToTensor: (action: tf.Tensor) => TensorLike;
 
   private buffer: PPOBuffer;
+  private trainConfigs: PPOTrainConfigs;
 
   // stats
   private rollOutDuration = 0;
@@ -116,6 +117,7 @@ export class PPO<
   private ep_len: number;
   private ep_rets: number[];
   private ep_rewards: number[];
+  private bestEver: number;
 
   constructor(
     /** function that creates environment for interaction */
@@ -166,22 +168,20 @@ export class PPO<
       iterationCallback: () => {},
     };
     configs = deepMerge(configs, trainConfigs);
+    this.trainConfigs = configs;
     log.level = configs.verbosity;
 
     // TODO do some seeding things
     random.seed(configs.seed);
     // TODO: seed tensorflow if possible
 
-    const env = this.env;
-    const obs_dim = env.observationSpace.shape;
+    const obs_dim = this.env.observationSpace.shape;
 
-    let buffer_action_dim = env.actionSpace.shape;
-    let mask_dim = env.actionSpace.shape;
-    if (env.actionSpace instanceof Discrete) {
+    let buffer_action_dim = this.env.actionSpace.shape;
+    let mask_dim = this.env.actionSpace.shape;
+    if (this.env.actionSpace instanceof Discrete) {
       buffer_action_dim = [1];
     }
-
-    let local_steps_per_iteration = configs.steps_per_iteration;
 
     this.buffer = new PPOBuffer({
       gamma: configs.gamma,
@@ -189,133 +189,101 @@ export class PPO<
       actDim: buffer_action_dim,
       maskDim: mask_dim,
       obsDim: obs_dim,
-      size: local_steps_per_iteration,
+      size: configs.steps_per_iteration,
     });
 
     this.ep_ret = 0;
     this.ep_len = 0;
     this.ep_rets = [];
     this.ep_rewards = [];
+    this.bestEver = 0;
+    this.env.reset();
   }
 
   public train(trainConfigs: Partial<PPOTrainConfigs>) {
     this.setupTrain(trainConfigs);
-
-    let configs: PPOTrainConfigs = {
-      optimizer: tf.train.adam(3e-4, 0.9, 0.999, 1e-8),
-      vf_coef: 0.5,
-      ckptFreq: 1000,
-      steps_per_iteration: 10000,
-      n_epochs: 10,
-      max_ep_len: 1000,
-      batch_size: 64,
-      iterations: 50,
-      train_v_iters: 80,
-      gamma: 0.99,
-      lam: 0.97,
-      clip_ratio: 0.2,
-      seed: 0,
-      train_pi_iters: 1,
-      target_kl: 0.01,
-      verbosity: 'info',
-      name: 'PPO_Train',
-      stepCallback: () => {},
-      iterationCallback: () => {},
-    };
-    configs = deepMerge(configs, trainConfigs);
-
-    // TODO do some seeding things
-    random.seed(configs.seed);
-    // TODO: seed tensorflow if possible
-
-    const env = this.env;
-    const buffer = this.buffer;
-    let local_steps_per_iteration = configs.steps_per_iteration;
-
-    let o = env.reset();
-    let same_return_count = 0;
-    let bestEver = 0;
-    for (let iteration = 0; iteration < configs.iterations; iteration++) {
+    for (let iteration = 0; iteration < this.trainConfigs.iterations; iteration++) {
       const startTime = Date.now();
-      this.collectRollout(local_steps_per_iteration, o, env, configs);
-
+      this.collectRollout();
       // update actor critic
-      const metrics = this.update(configs);
-
-      const totalDuration = (Date.now() - startTime) / 1000;
-
+      const metrics = this.update();
       // collect metrics
-      let isBestEver = false;
-      const ep_max = nj.max(this.ep_rets);
-      if (ep_max > bestEver) {
-        bestEver = ep_max;
-        isBestEver = true;
-      }
+      this.collectMetrics(startTime, iteration, this.trainConfigs, metrics);
+    }
+  }
 
-      const perfMetrics = {
-        t: iteration * configs.steps_per_iteration,
-        fps: configs.steps_per_iteration / totalDuration,
-        duration_rollout: this.rollOutDuration,
-        duration_train: this.trainDuration,
-        fps_rollout: configs.steps_per_iteration / this.rollOutDuration,
-        fps_train: (configs.steps_per_iteration * metrics.trained_epoches) / this.trainDuration,
-      };
+  private collectMetrics(
+    startTime: number,
+    iteration: number,
+    configs: PPOTrainConfigs,
+    metrics: {
+      kl: number;
+      entropy: number;
+      clip_frac: number;
+      trained_epoches: number;
+      loss_pi: number;
+      loss_vf: number;
+    }
+  ) {
+    const totalDuration = (Date.now() - startTime) / 1000;
+    const ep_max = nj.max(this.ep_rets);
+    if (ep_max > this.bestEver) {
+      this.bestEver = ep_max;
+    }
 
-      // save model
-      if (this.ep_rets.every((ret) => ret === this.ep_rets[0])) {
-        same_return_count++;
-        log.warn(`${configs.name} | Episode returns are the same for ${same_return_count} times`);
-      } else {
-        same_return_count = 0;
-      }
+    const perfMetrics = {
+      t: iteration * configs.steps_per_iteration,
+      fps: configs.steps_per_iteration / totalDuration,
+      duration_rollout: this.rollOutDuration,
+      duration_train: this.trainDuration,
+      fps_rollout: configs.steps_per_iteration / this.rollOutDuration,
+      fps_train: (configs.steps_per_iteration * metrics.trained_epoches) / this.trainDuration,
+    };
 
-      const ep_rets_metrics = {
-        min: nj.min(this.ep_rets),
-        max: ep_max,
-        mean: nj.mean(this.ep_rets),
-        bestEver,
-        std: nj.std(this.ep_rets),
-      };
-      const ep_rewards_metrics = {
-        min: nj.min(this.ep_rewards),
-        max: nj.max(this.ep_rewards),
-        mean: nj.mean(this.ep_rewards),
-      };
+    const ep_rets_metrics = {
+      min: nj.min(this.ep_rets),
+      max: ep_max,
+      mean: nj.mean(this.ep_rets),
+      bestEver: this.bestEver,
+      std: nj.std(this.ep_rets),
+    };
+    const ep_rewards_metrics = {
+      min: nj.min(this.ep_rewards),
+      max: nj.max(this.ep_rewards),
+      mean: nj.mean(this.ep_rewards),
+    };
 
-      const msg = `${configs.name} | Iteration ${iteration} metrics: `;
-      log.info(
-        {
-          ...metrics,
-          ep_rets: ep_rets_metrics,
-          ep_rewards: ep_rewards_metrics,
-          ...perfMetrics,
-        },
-        msg
-      );
-      // console.log('numTensors', tf.memory().numTensors);
-      configs.iterationCallback({
-        iteration,
+    const msg = `${configs.name} | Iteration ${iteration} metrics: `;
+    log.info(
+      {
         ...metrics,
         ep_rets: ep_rets_metrics,
         ep_rewards: ep_rewards_metrics,
         ...perfMetrics,
-      });
+      },
+      msg
+    );
+    // console.log('numTensors', tf.memory().numTensors);
+    configs.iterationCallback({
+      iteration,
+      ...metrics,
+      ep_rets: ep_rets_metrics,
+      ep_rewards: ep_rewards_metrics,
+      ...perfMetrics,
+    });
 
-      this.ep_rets = [];
-      this.ep_rewards = [];
-    }
+    this.ep_rets = [];
+    this.ep_rewards = [];
   }
 
-  public collectRollout(
-    local_steps_per_iteration: number,
-    o: Observation,
-    env: Environment<ObservationSpace, ActionSpace, Observation, any, Action, number>,
-    configs: PPOTrainConfigs
-  ) {
+  public collectRollout() {
     const rolloutStartTime = Date.now();
     tf.tidy(() => {
+      const env = this.env;
+      const configs = this.trainConfigs;
       let invalidMask = env.invalidActionMask();
-      for (let t = 0; t < local_steps_per_iteration; t++) {
+      let o = env.state as Observation;
+      for (let t = 0; t < configs.steps_per_iteration; t++) {
         let { a, v, logp_a } = this.ac.step(this.obsToTensor(o), np.toTensor(invalidMask));
 
         const action = this.actionToTensor(a) as number;
@@ -352,7 +320,7 @@ export class PPO<
 
         const timeout = this.ep_len === configs.max_ep_len;
         const terminal = d || timeout;
-        const epoch_ended = t === local_steps_per_iteration - 1;
+        const epoch_ended = t === configs.steps_per_iteration - 1;
         if (terminal || epoch_ended) {
           if (epoch_ended && !terminal) {
             log.warn(`${configs.name} | Trajectory cut off by epoch at ${this.ep_len} steps`);
@@ -377,7 +345,8 @@ export class PPO<
     this.rollOutDuration = (Date.now() - rolloutStartTime) / 1000;
   }
 
-  public update(configs: PPOTrainConfigs) {
+  public update() {
+    const configs = this.trainConfigs;
     const updateStartTime = Date.now();
     const { clip_ratio, optimizer, target_kl } = configs;
 

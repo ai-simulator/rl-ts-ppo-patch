@@ -18,7 +18,8 @@
 - [x] 16 record fps and best ever reward
 - [x] 17 split rollout and train stats
 - [x] 18 reproduce results
-- [] 19 split rollout and train procedure
+- [x] 19 split rollout and train procedure
+- [] 20 split further
 
 # PPO pendulum tests
 
