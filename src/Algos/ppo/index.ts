@@ -9,12 +9,6 @@ import { deepMerge } from 'rl-ts/lib/utils/deep';
 import * as np from 'rl-ts/lib/utils/np';
 import nj, { NdArray } from 'numjs';
 import { ActorCritic } from 'rl-ts/lib/Models/ac';
-import pino from 'pino';
-const log = pino({
-  prettyPrint: {
-    colorize: true,
-  },
-});
 
 export interface PPOConfigs<Observation, Action> {
   /** Converts observations to batchable tensors of shape [1, ...observation shape] */
@@ -119,6 +113,9 @@ export class PPO<
   private ep_rewards: number[];
   private bestEver: number;
 
+  // debug
+  private debug: boolean;
+
   constructor(
     /** function that creates environment for interaction */
     public makeEnv: () => Environment<ObservationSpace, ActionSpace, Observation, any, Action, number>,
@@ -133,6 +130,7 @@ export class PPO<
     this.env = makeEnv();
     this.obsToTensor = this.configs.obsToTensor;
     this.actionToTensor = this.configs.actionToTensor;
+    this.debug = false;
   }
 
   /**
@@ -145,7 +143,7 @@ export class PPO<
     return np.tensorLikeToNdArray(this.actionToTensor(this.ac.act(this.obsToTensor(observation))));
   }
 
-  public setupTrain(trainConfigs: Partial<PPOTrainConfigs>) {
+  public setupTrain(trainConfigs: Partial<PPOTrainConfigs>, debug: boolean = true) {
     let configs: PPOTrainConfigs = {
       optimizer: tf.train.adam(3e-4, 0.9, 0.999, 1e-8),
       vf_coef: 0.5,
@@ -169,7 +167,11 @@ export class PPO<
     };
     configs = deepMerge(configs, trainConfigs);
     this.trainConfigs = configs;
-    log.level = configs.verbosity;
+
+    this.debug = debug;
+    if (this.debug) {
+      console.log('merged configs:', this.trainConfigs);
+    }
 
     // TODO do some seeding things
     random.seed(configs.seed);
@@ -254,15 +256,14 @@ export class PPO<
     };
 
     const msg = `${configs.name} | Iteration ${iteration} metrics: `;
-    log.info(
-      {
+    if (this.debug) {
+      console.log(msg, {
         ...metrics,
         ep_rets: ep_rets_metrics,
         ep_rewards: ep_rewards_metrics,
         ...perfMetrics,
-      },
-      msg
-    );
+      });
+    }
     // console.log('numTensors', tf.memory().numTensors);
     configs.iterationCallback({
       iteration,
@@ -323,7 +324,9 @@ export class PPO<
         const epoch_ended = t === configs.steps_per_iteration - 1;
         if (terminal || epoch_ended) {
           if (epoch_ended && !terminal) {
-            log.warn(`${configs.name} | Trajectory cut off by epoch at ${this.ep_len} steps`);
+            if (this.debug) {
+              console.log(`${configs.name} | Trajectory cut off by epoch at ${this.ep_len} steps`);
+            }
           }
           let v = 0;
           if (timeout || epoch_ended) {
@@ -454,11 +457,13 @@ export class PPO<
             return loss_pi.add(loss_v.mul(configs.vf_coef)) as tf.Scalar;
           });
           if (kls[kls.length - 1] > 1.5 * target_kl) {
-            log.warn(
-              `${configs.name} | Early stopping at epoch ${epoch} batch ${batch}/${Math.floor(
-                totalSize / batchSize
-              )} of optimizing policy due to reaching max kl ${kls[kls.length - 1]} / ${1.5 * target_kl}`
-            );
+            if (this.debug) {
+              console.log(
+                `${configs.name} | Early stopping at epoch ${epoch} batch ${batch}/${Math.floor(
+                  totalSize / batchSize
+                )} of optimizing policy due to reaching max kl ${kls[kls.length - 1]} / ${1.5 * target_kl}`
+              );
+            }
             continueTraining = false;
             break;
           }

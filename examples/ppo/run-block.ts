@@ -6,7 +6,7 @@ import { Game } from '../../src/Environments/examples/Block/model/game';
 import { DEFAULT_CLEAR_LINE_GAME_CONFIG, SIMPLE_CONFIG } from '../../src/Environments/examples/Block/model/gameConfig';
 import { expertSet } from '../../src/Environments/examples/Block/model/shape';
 
-const RUN = `block-22-size9-split-mobile`;
+const RUN = `block-23-size9-split-mobile`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
@@ -41,7 +41,6 @@ const main = async () => {
     optimizer: tf.train.adam(3e-4, 0.9, 0.999, 1e-8),
     lam: 0.95,
     steps_per_iteration: 1024,
-    iterations: 1000,
     n_epochs: 5,
     train_pi_iters: 10,
     train_v_iters: 10,
@@ -68,7 +67,7 @@ const main = async () => {
     },
   };
   ppo.setupTrain(config);
-  const iterations = 1000;
+  const iterations = 4000;
   for (let i = 0; i < iterations; i++) {
     console.log('iterations:', i);
     const startTime = Date.now();
