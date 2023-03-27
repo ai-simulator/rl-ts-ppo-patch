@@ -6,7 +6,7 @@ import { Game } from '../../src/Environments/examples/Block/model/game';
 import { DEFAULT_CLEAR_LINE_GAME_CONFIG, SIMPLE_CONFIG } from '../../src/Environments/examples/Block/model/gameConfig';
 import { expertSet } from '../../src/Environments/examples/Block/model/shape';
 
-const RUN = `block-21-size9-split-mobile`;
+const RUN = `block-22-size9-split-mobile`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
@@ -28,7 +28,7 @@ const main = async () => {
     return new Block({ game });
   };
   const env = makeEnv();
-  const ac = new RL.Models.MLPActorCritic(env.observationSpace, env.actionSpace, [64, 64], 'tanh', true);
+  const ac = new RL.Models.MLPActorCritic(env.observationSpace, env.actionSpace, [64, 64], 'tanh', false);
   ac.print();
   const ppo = new RL.Algos.PPO(makeEnv, ac, {
     actionToTensor: (action: tf.Tensor) => {
@@ -52,6 +52,7 @@ const main = async () => {
     iterationCallback(epochData) {
       summaryWriter.scalar('step_r', epochData.ep_rewards.mean, epochData.t);
       summaryWriter.scalar('reward', epochData.ep_rets.mean, epochData.t);
+      summaryWriter.scalar('max', epochData.ep_rets.max, epochData.t);
       summaryWriter.scalar('best_ever', epochData.ep_rets.bestEver, epochData.t);
       // summaryWriter.scalar('delta_pi_loss', epochData.delta_pi_loss, epochData.t);
       // summaryWriter.scalar('delta_vf_loss', epochData.delta_vf_loss, epochData.t);

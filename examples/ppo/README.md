@@ -20,7 +20,8 @@
 - [x] 18 reproduce results
 - [x] 19 split rollout and train procedure
 - [x] 20 split further
-- [] 21 mobile procedure
+- [x] 21 mobile procedure
+- [x] 22 remove conv
 
 # PPO pendulum tests
 
