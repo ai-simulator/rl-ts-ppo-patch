@@ -208,14 +208,13 @@ export class PPO<
       // update actor critic
       const metrics = this.update();
       // collect metrics
-      this.collectMetrics(startTime, iteration, this.trainConfigs, metrics);
+      this.collectMetrics(startTime, iteration, metrics);
     }
   }
 
-  private collectMetrics(
+  public collectMetrics(
     startTime: number,
     iteration: number,
-    configs: PPOTrainConfigs,
     metrics: {
       kl: number;
       entropy: number;
@@ -225,6 +224,7 @@ export class PPO<
       loss_vf: number;
     }
   ) {
+    const configs = this.trainConfigs;
     const totalDuration = (Date.now() - startTime) / 1000;
     const ep_max = nj.max(this.ep_rets);
     if (ep_max > this.bestEver) {

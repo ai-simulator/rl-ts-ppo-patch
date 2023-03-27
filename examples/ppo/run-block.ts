@@ -6,7 +6,7 @@ import { Game } from '../../src/Environments/examples/Block/model/game';
 import { DEFAULT_CLEAR_LINE_GAME_CONFIG, SIMPLE_CONFIG } from '../../src/Environments/examples/Block/model/gameConfig';
 import { expertSet } from '../../src/Environments/examples/Block/model/shape';
 
-const RUN = `block-19-size9-split`;
+const RUN = `block-21-size9-split-mobile`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
@@ -36,12 +36,13 @@ const main = async () => {
       return action.squeeze();
     },
   });
-  ppo.train({
+
+  const config = {
     optimizer: tf.train.adam(3e-4, 0.9, 0.999, 1e-8),
     lam: 0.95,
-    steps_per_iteration: 2048,
+    steps_per_iteration: 1024,
     iterations: 1000,
-    n_epochs: 10,
+    n_epochs: 5,
     train_pi_iters: 10,
     train_v_iters: 10,
     batch_size: 64,
@@ -64,7 +65,18 @@ const main = async () => {
       summaryWriter.scalar('duration_rollout', epochData.duration_rollout, epochData.t);
       summaryWriter.scalar('duration_train', epochData.duration_train, epochData.t);
     },
-  });
+  };
+  ppo.setupTrain(config);
+  const iterations = 1000;
+  for (let i = 0; i < iterations; i++) {
+    console.log('iterations:', i);
+    const startTime = Date.now();
+    ppo.collectRollout();
+    // update actor critic
+    const metrics = ppo.update();
+    // collect metrics
+    ppo.collectMetrics(startTime, i, metrics);
+  }
 };
 
 main();

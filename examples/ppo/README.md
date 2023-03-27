@@ -19,7 +19,8 @@
 - [x] 17 split rollout and train stats
 - [x] 18 reproduce results
 - [x] 19 split rollout and train procedure
-- [] 20 split further
+- [x] 20 split further
+- [] 21 mobile procedure
 
 # PPO pendulum tests
 
