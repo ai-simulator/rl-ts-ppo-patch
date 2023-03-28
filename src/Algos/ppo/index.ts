@@ -7,7 +7,7 @@ import { PPOBuffer, PPOBufferComputations } from 'rl-ts/lib/Algos/ppo/buffer';
 import { DeepPartial } from 'rl-ts/lib/utils/types';
 import { deepMerge } from 'rl-ts/lib/utils/deep';
 import * as np from 'rl-ts/lib/utils/np';
-import nj, { NdArray } from 'numjs';
+import nj, { NdArray, NjArray } from 'numjs';
 import { ActorCritic } from 'rl-ts/lib/Models/ac';
 
 type pi_info = {
@@ -159,8 +159,10 @@ export class PPO<
    * @param observation - observation to select action off of
    * @returns action
    */
-  public act(observation: Observation): Action {
-    return np.tensorLikeToNdArray(this.actionToTensor(this.ac.act(this.obsToTensor(observation))));
+  public act(observation: Observation, acitonMask: nj.NdArray<number>): Action {
+    return np.tensorLikeToNdArray(
+      this.actionToTensor(this.ac.act(this.obsToTensor(observation), np.toTensor(acitonMask)))
+    );
   }
 
   public setupTrain(trainConfigs: Partial<PPOTrainConfigs>, debug: boolean = true) {

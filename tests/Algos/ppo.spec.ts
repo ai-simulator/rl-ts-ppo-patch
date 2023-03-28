@@ -62,5 +62,7 @@ describe('Test PPO', () => {
       metrics.trained_epoches = j;
       ppo.collectMetrics(startTime, i, metrics);
     }
+    const action = ppo.act(env.state, env.invalidActionMask());
+    console.log('action:', action);
   }).slow(20000);
 });
