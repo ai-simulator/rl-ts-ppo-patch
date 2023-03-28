@@ -16,12 +16,22 @@ describe('Test PPO', () => {
         return action.squeeze();
       },
     });
-    await ppo.train({
+    ppo.setupTrain({
       steps_per_iteration: 1000,
       iterations: 5,
       iterationCallback(epochData) {
         console.log(epochData);
       },
     });
+    const iterations = 7;
+    for (let i = 0; i < iterations; i++) {
+      console.log('iterations:', i);
+      const startTime = Date.now();
+      ppo.collectRollout();
+      // update actor critic
+      const metrics = ppo.update();
+      // collect metrics
+      ppo.collectMetrics(startTime, i, metrics);
+    }
   }).slow(20000);
 });
