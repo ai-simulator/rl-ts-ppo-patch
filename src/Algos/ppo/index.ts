@@ -10,6 +10,22 @@ import * as np from 'rl-ts/lib/utils/np';
 import nj, { NdArray } from 'numjs';
 import { ActorCritic } from 'rl-ts/lib/Models/ac';
 
+type pi_info = {
+  approx_kl: number;
+  entropy: number;
+  clip_frac: any;
+};
+
+export type TrainMetrics = {
+  kl: number;
+  entropy: number;
+  clip_frac: number;
+  trained_epoches: number;
+  continueTraining: boolean;
+  loss_pi: number;
+  loss_vf: number;
+};
+
 export interface PPOConfigs<Observation, Action> {
   /** Converts observations to batchable tensors of shape [1, ...observation shape] */
   obsToTensor: (state: Observation) => tf.Tensor;
@@ -102,7 +118,11 @@ export class PPO<
   private actionToTensor: (action: tf.Tensor) => TensorLike;
 
   private buffer: PPOBuffer;
-  private trainConfigs: PPOTrainConfigs;
+  public trainConfigs: PPOTrainConfigs;
+
+  // minibatch
+  private miniBatchData: PPOBufferComputations;
+  private miniBatchIndices: tf.Tensor1D;
 
   // stats
   private rollOutDuration = 0;
@@ -206,26 +226,36 @@ export class PPO<
     this.setupTrain(trainConfigs);
     for (let iteration = 0; iteration < this.trainConfigs.iterations; iteration++) {
       const startTime = Date.now();
-      this.collectRollout();
+      let start = 0;
+      while (start < this.trainConfigs.steps_per_iteration) {
+        this.collectRollout(start, start + this.trainConfigs.batch_size);
+        start += this.trainConfigs.batch_size;
+      }
       // update actor critic
-      const metrics = this.update();
+      this.prepareMiniBatch();
+      const maxBatch = this.getMaxBatch();
+      let metrics: TrainMetrics;
+      let continueTraining = true;
+      let i = 0;
+      for (; i < this.trainConfigs.n_epochs; i++) {
+        if (!continueTraining) {
+          break;
+        }
+        let batch = 0;
+        while (batch < maxBatch && continueTraining) {
+          console.log('Epoch :', i, 'Batch:', batch);
+          metrics = this.update(batch);
+          continueTraining = metrics.continueTraining;
+          batch++;
+        }
+      }
       // collect metrics
+      metrics.trained_epoches = i;
       this.collectMetrics(startTime, iteration, metrics);
     }
   }
 
-  public collectMetrics(
-    startTime: number,
-    iteration: number,
-    metrics: {
-      kl: number;
-      entropy: number;
-      clip_frac: number;
-      trained_epoches: number;
-      loss_pi: number;
-      loss_vf: number;
-    }
-  ) {
+  public collectMetrics(startTime: number, iteration: number, metrics: TrainMetrics) {
     const configs = this.trainConfigs;
     const totalDuration = (Date.now() - startTime) / 1000;
     const ep_max = nj.max(this.ep_rets);
@@ -277,14 +307,14 @@ export class PPO<
     this.ep_rewards = [];
   }
 
-  public collectRollout() {
+  public collectRollout(start: number, end: number) {
     const rolloutStartTime = Date.now();
     tf.tidy(() => {
       const env = this.env;
       const configs = this.trainConfigs;
       let invalidMask = env.invalidActionMask();
       let o = env.state as Observation;
-      for (let t = 0; t < configs.steps_per_iteration; t++) {
+      for (let t = start; t < configs.steps_per_iteration && t < end; t++) {
         let { a, v, logp_a } = this.ac.step(this.obsToTensor(o), np.toTensor(invalidMask));
 
         const action = this.actionToTensor(a) as number;
@@ -348,18 +378,24 @@ export class PPO<
     this.rollOutDuration = (Date.now() - rolloutStartTime) / 1000;
   }
 
-  public update() {
+  public prepareMiniBatch() {
+    const configs = this.trainConfigs;
+    const totalSize = configs.steps_per_iteration;
+    this.miniBatchData = this.buffer.get();
+    this.miniBatchIndices = tf.tensor1d(Array.from(tf.util.createShuffledIndices(totalSize)), 'int32');
+  }
+
+  public getMaxBatch() {
+    const configs = this.trainConfigs;
+    return Math.floor(configs.steps_per_iteration / configs.batch_size);
+  }
+
+  public update(batch: number) {
     const configs = this.trainConfigs;
     const updateStartTime = Date.now();
     const { clip_ratio, optimizer, target_kl } = configs;
 
-    type pi_info = {
-      approx_kl: number;
-      entropy: number;
-      clip_frac: any;
-    };
-
-    const compute_loss_pi = (data: PPOBufferComputations, epoch: number): { loss_pi: tf.Tensor; pi_info: pi_info } => {
+    const compute_loss_pi = (data: PPOBufferComputations): { loss_pi: tf.Tensor; pi_info: pi_info } => {
       let { obs, act, adv, mask } = data;
       return tf.tidy(() => {
         const logp_old = data.logp.expandDims(-1);
@@ -406,83 +442,76 @@ export class PPO<
     };
 
     return tf.tidy(() => {
-      const buffer = this.buffer;
-      const data = buffer.get();
       const totalSize = configs.steps_per_iteration;
       const batchSize = configs.batch_size;
+
+      const data = this.miniBatchData;
+      const indices = this.miniBatchIndices;
+      if (!data || !indices) {
+        throw new Error('Mini batch data or indices not found');
+      }
 
       let kls: number[] = [];
       let entropy = 0;
       let clip_frac = 0;
-      let trained_epoches = 0;
-
       let loss_pi_ = 0;
       let loss_vf_ = 0;
 
       let continueTraining = true;
 
-      for (let epoch = 0; epoch < configs.n_epochs; epoch++) {
-        let batchStartIndex = 0;
-        let batch = 0;
-        let maxBatch = Math.floor(totalSize / batchSize);
-        const indices = tf.tensor1d(Array.from(tf.util.createShuffledIndices(totalSize)), 'int32');
-        while (batch < maxBatch) {
-          const batchData = {
-            obs: data.obs.gather(indices.slice(batchStartIndex, batchSize)),
-            act: data.act.gather(indices.slice(batchStartIndex, batchSize)),
-            adv: data.adv.gather(indices.slice(batchStartIndex, batchSize)),
-            ret: data.ret.gather(indices.slice(batchStartIndex, batchSize)),
-            logp: data.logp.gather(indices.slice(batchStartIndex, batchSize)),
-            mask: data.mask.gather(indices.slice(batchStartIndex, batchSize)),
-          };
+      let batchStartIndex = batch * batchSize;
+      let maxBatch = this.getMaxBatch();
+      if (batch < maxBatch) {
+        const batchData = {
+          obs: data.obs.gather(indices.slice(batchStartIndex, batchSize)),
+          act: data.act.gather(indices.slice(batchStartIndex, batchSize)),
+          adv: data.adv.gather(indices.slice(batchStartIndex, batchSize)),
+          ret: data.ret.gather(indices.slice(batchStartIndex, batchSize)),
+          logp: data.logp.gather(indices.slice(batchStartIndex, batchSize)),
+          mask: data.mask.gather(indices.slice(batchStartIndex, batchSize)),
+        };
 
-          // normalization adv
-          const stats = {
-            mean: batchData.adv.mean(),
-            std: nj.std(batchData.adv.arraySync()),
-          };
-          batchData.adv = batchData.adv.sub(stats.mean).div(stats.std + 1e-8);
+        // normalization adv
+        const stats = {
+          mean: batchData.adv.mean(),
+          std: nj.std(batchData.adv.arraySync()),
+        };
+        batchData.adv = batchData.adv.sub(stats.mean).div(stats.std + 1e-8);
 
-          batchStartIndex += batchSize;
+        const grads = optimizer.computeGradients(() => {
+          const { loss_pi, pi_info } = compute_loss_pi(batchData);
+          kls.push(pi_info.approx_kl);
+          entropy = pi_info.entropy;
+          clip_frac = pi_info.clip_frac;
 
-          const grads = optimizer.computeGradients(() => {
-            const { loss_pi, pi_info } = compute_loss_pi(batchData, epoch);
-            kls.push(pi_info.approx_kl);
-            entropy = pi_info.entropy;
-            clip_frac = pi_info.clip_frac;
-
-            const loss_v = compute_loss_vf(batchData);
-            loss_pi_ = loss_pi.arraySync() as number;
-            loss_vf_ = loss_v.arraySync() as number;
-            return loss_pi.add(loss_v.mul(configs.vf_coef)) as tf.Scalar;
-          });
-          if (kls[kls.length - 1] > 1.5 * target_kl) {
-            if (this.debug) {
-              console.log(
-                `${configs.name} | Early stopping at epoch ${epoch} batch ${batch}/${Math.floor(
-                  totalSize / batchSize
-                )} of optimizing policy due to reaching max kl ${kls[kls.length - 1]} / ${1.5 * target_kl}`
-              );
-            }
-            continueTraining = false;
-            break;
+          const loss_v = compute_loss_vf(batchData);
+          loss_pi_ = loss_pi.arraySync() as number;
+          loss_vf_ = loss_v.arraySync() as number;
+          return loss_pi.add(loss_v.mul(configs.vf_coef)) as tf.Scalar;
+        });
+        if (kls[kls.length - 1] > 1.5 * target_kl) {
+          if (this.debug) {
+            console.log(
+              `${configs.name} | Early stopping at batch ${batch}/${Math.floor(
+                totalSize / batchSize
+              )} of optimizing policy due to reaching max kl ${kls[kls.length - 1]} / ${1.5 * target_kl}`
+            );
           }
-
-          const maxNorm = 0.5;
-          const clippedGrads: tf.NamedTensorMap = {};
-          const totalNorm = tf.norm(tf.stack(Object.values(grads.grads).map((grad) => tf.norm(grad))));
-          const clipCoeff = tf.minimum(tf.scalar(1.0), tf.scalar(maxNorm).div(totalNorm.add(1e-6)));
-          Object.keys(grads.grads).forEach((name) => {
-            clippedGrads[name] = tf.mul(grads.grads[name], clipCoeff);
-          });
-
-          optimizer.applyGradients(clippedGrads);
-          batch++;
+          continueTraining = false;
         }
-        trained_epoches++;
-        if (!continueTraining) {
-          break;
-        }
+
+        const maxNorm = 0.5;
+        const clippedGrads: tf.NamedTensorMap = {};
+        const totalNorm = tf.norm(tf.stack(Object.values(grads.grads).map((grad) => tf.norm(grad))));
+        const clipCoeff = tf.minimum(tf.scalar(1.0), tf.scalar(maxNorm).div(totalNorm.add(1e-6)));
+        Object.keys(grads.grads).forEach((name) => {
+          clippedGrads[name] = tf.mul(grads.grads[name], clipCoeff);
+        });
+
+        optimizer.applyGradients(clippedGrads);
+        batch++;
+      } else {
+        throw new Error(`batch ${batch} is out of range ${maxBatch}`);
       }
 
       this.trainDuration = (Date.now() - updateStartTime) / 1000;
@@ -491,7 +520,8 @@ export class PPO<
         kl: nj.mean(nj.array(kls)),
         entropy,
         clip_frac,
-        trained_epoches,
+        continueTraining,
+        trained_epoches: 1,
         loss_pi: loss_pi_,
         loss_vf: loss_vf_,
       };
