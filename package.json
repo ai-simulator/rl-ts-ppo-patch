@@ -24,7 +24,8 @@
     "prettier": "prettier --write ./src ./tests",
     "prettier:check": "prettier -c ./src ./tests",
     "docs": "typedoc src/index.ts",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "prof": "node --loader ts-node/esm --cpu-prof ./examples/ppo/profile-block.ts"
   },
   "keywords": [
     "Reinforcement Learning",

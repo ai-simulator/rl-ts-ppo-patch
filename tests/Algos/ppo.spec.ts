@@ -18,7 +18,7 @@ describe('Test PPO', () => {
       },
     });
     ppo.setupTrain({
-      steps_per_iteration: 1000,
+      steps_per_iteration: 1024,
       iterations: 5,
       iterationCallback(epochData) {
         console.log(epochData);
@@ -27,15 +27,15 @@ describe('Test PPO', () => {
     const iterations = 7;
     let i = 0;
     for (; i < iterations; i++) {
+      const maxBatch = ppo.getMaxBatch();
       const startTime = Date.now();
-      let start = 0;
-      while (start < ppo.trainConfigs.steps_per_iteration) {
-        ppo.collectRollout(start, start + ppo.trainConfigs.batch_size);
-        start += ppo.trainConfigs.batch_size;
+      let collectBatch = 0;
+      while (collectBatch < maxBatch) {
+        ppo.collectRollout(collectBatch);
+        collectBatch++;
       }
       // update actor critic
       ppo.prepareMiniBatch();
-      const maxBatch = ppo.getMaxBatch();
       let metrics: TrainMetrics = {
         kl: 0,
         entropy: 0,
