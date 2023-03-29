@@ -66,7 +66,7 @@ const main = async () => {
     },
   };
   ppo.setupTrain(config);
-  const iterations = 4000;
+  const iterations = 5000;
   for (let i = 0; i < iterations; i++) {
     console.log('iterations:', i);
     const maxBatch = ppo.getMaxBatch();
