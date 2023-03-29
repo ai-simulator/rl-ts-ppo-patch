@@ -7,7 +7,7 @@ import { DEFAULT_CLEAR_LINE_GAME_CONFIG, SIMPLE_CONFIG } from '../../src/Environ
 import { expertSet } from '../../src/Environments/examples/Block/model/shape';
 import { TrainMetrics } from '../../src/Algos/ppo';
 
-const RUN = `block-23-size9-split-mobile`;
+const RUN = `block-25-mobile-512-32`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
@@ -41,11 +41,9 @@ const main = async () => {
   const config = {
     optimizer: tf.train.adam(3e-4, 0.9, 0.999, 1e-8),
     lam: 0.95,
-    steps_per_iteration: 1024,
-    n_epochs: 5,
-    train_pi_iters: 10,
-    train_v_iters: 10,
-    batch_size: 64,
+    steps_per_iteration: 512,
+    n_epochs: 3,
+    batch_size: 32,
     vf_coef: 0.5,
     target_kl: 0.02,
     savePath,
@@ -71,15 +69,15 @@ const main = async () => {
   const iterations = 4000;
   for (let i = 0; i < iterations; i++) {
     console.log('iterations:', i);
+    const maxBatch = ppo.getMaxBatch();
     const startTime = Date.now();
-    let start = 0;
-    while (start < ppo.trainConfigs.steps_per_iteration) {
-      ppo.collectRollout(start, start + ppo.trainConfigs.batch_size);
-      start += ppo.trainConfigs.batch_size;
+    let collectBatch = 0;
+    while (collectBatch < maxBatch) {
+      ppo.collectRollout(collectBatch);
+      collectBatch++;
     }
     // update actor critic
     ppo.prepareMiniBatch();
-    const maxBatch = ppo.getMaxBatch();
     let metrics: TrainMetrics = {
       kl: 0,
       entropy: 0,

@@ -23,7 +23,8 @@
 - [x] 21 mobile procedure
 - [x] 22 remove conv
 - [x] 23 no conv, 4000 iterations
-- [] 24 conv, 4000 iterations
+- [x] 24 mobile setting, 4000 iterations
+- [] 25 mobile setting, 4000 iterations, fix fps
 
 # PPO pendulum tests
 

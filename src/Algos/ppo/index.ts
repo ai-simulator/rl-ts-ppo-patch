@@ -226,16 +226,16 @@ export class PPO<
 
   public train(trainConfigs: Partial<PPOTrainConfigs>) {
     this.setupTrain(trainConfigs);
+    const maxBatch = this.getMaxBatch();
     for (let iteration = 0; iteration < this.trainConfigs.iterations; iteration++) {
       const startTime = Date.now();
-      let start = 0;
-      while (start < this.trainConfigs.steps_per_iteration) {
-        this.collectRollout(start, start + this.trainConfigs.batch_size);
-        start += this.trainConfigs.batch_size;
+      let collectBatch = 0;
+      while (collectBatch < maxBatch) {
+        this.collectRollout(collectBatch);
+        collectBatch++;
       }
       // update actor critic
       this.prepareMiniBatch();
-      const maxBatch = this.getMaxBatch();
       let metrics: TrainMetrics;
       let continueTraining = true;
       let i = 0;
@@ -270,8 +270,8 @@ export class PPO<
       fps: configs.steps_per_iteration / totalDuration,
       duration_rollout: this.rollOutDuration,
       duration_train: this.trainDuration,
-      fps_rollout: configs.steps_per_iteration / this.rollOutDuration,
-      fps_train: (configs.steps_per_iteration * metrics.trained_epoches) / this.trainDuration,
+      fps_rollout: configs.batch_size / this.rollOutDuration,
+      fps_train: configs.batch_size / this.trainDuration,
     };
 
     const ep_rets_metrics = {
@@ -309,8 +309,10 @@ export class PPO<
     this.ep_rewards = [];
   }
 
-  public collectRollout(start: number, end: number) {
+  public collectRollout(batch: number) {
     const rolloutStartTime = Date.now();
+    const start = batch * this.trainConfigs.batch_size;
+    const end = start + this.trainConfigs.batch_size;
     tf.tidy(() => {
       const env = this.env;
       const configs = this.trainConfigs;
@@ -393,9 +395,8 @@ export class PPO<
   }
 
   public update(batch: number) {
-    const configs = this.trainConfigs;
     const updateStartTime = Date.now();
-    const { clip_ratio, optimizer, target_kl } = configs;
+    const { clip_ratio, optimizer, target_kl, steps_per_iteration, batch_size, vf_coef } = this.trainConfigs;
 
     const compute_loss_pi = (data: PPOBufferComputations): { loss_pi: tf.Tensor; pi_info: pi_info } => {
       let { obs, act, adv, mask } = data;
@@ -444,9 +445,6 @@ export class PPO<
     };
 
     return tf.tidy(() => {
-      const totalSize = configs.steps_per_iteration;
-      const batchSize = configs.batch_size;
-
       const data = this.miniBatchData;
       const indices = this.miniBatchIndices;
       if (!data || !indices) {
@@ -461,16 +459,16 @@ export class PPO<
 
       let continueTraining = true;
 
-      let batchStartIndex = batch * batchSize;
+      let batchStartIndex = batch * batch_size;
       let maxBatch = this.getMaxBatch();
       if (batch < maxBatch) {
         const batchData = {
-          obs: data.obs.gather(indices.slice(batchStartIndex, batchSize)),
-          act: data.act.gather(indices.slice(batchStartIndex, batchSize)),
-          adv: data.adv.gather(indices.slice(batchStartIndex, batchSize)),
-          ret: data.ret.gather(indices.slice(batchStartIndex, batchSize)),
-          logp: data.logp.gather(indices.slice(batchStartIndex, batchSize)),
-          mask: data.mask.gather(indices.slice(batchStartIndex, batchSize)),
+          obs: data.obs.gather(indices.slice(batchStartIndex, batch_size)),
+          act: data.act.gather(indices.slice(batchStartIndex, batch_size)),
+          adv: data.adv.gather(indices.slice(batchStartIndex, batch_size)),
+          ret: data.ret.gather(indices.slice(batchStartIndex, batch_size)),
+          logp: data.logp.gather(indices.slice(batchStartIndex, batch_size)),
+          mask: data.mask.gather(indices.slice(batchStartIndex, batch_size)),
         };
 
         // normalization adv
@@ -489,13 +487,13 @@ export class PPO<
           const loss_v = compute_loss_vf(batchData);
           loss_pi_ = loss_pi.arraySync() as number;
           loss_vf_ = loss_v.arraySync() as number;
-          return loss_pi.add(loss_v.mul(configs.vf_coef)) as tf.Scalar;
+          return loss_pi.add(loss_v.mul(vf_coef)) as tf.Scalar;
         });
         if (kls[kls.length - 1] > 1.5 * target_kl) {
           if (this.debug) {
             console.log(
-              `${configs.name} | Early stopping at batch ${batch}/${Math.floor(
-                totalSize / batchSize
+              `PPO_Train | Early stopping at batch ${batch}/${Math.floor(
+                steps_per_iteration / batch_size
               )} of optimizing policy due to reaching max kl ${kls[kls.length - 1]} / ${1.5 * target_kl}`
             );
           }
