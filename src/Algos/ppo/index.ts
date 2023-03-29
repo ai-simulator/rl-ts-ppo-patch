@@ -313,71 +313,69 @@ export class PPO<
     const rolloutStartTime = Date.now();
     const start = batch * this.trainConfigs.batch_size;
     const end = start + this.trainConfigs.batch_size;
-    tf.tidy(() => {
-      const env = this.env;
-      const configs = this.trainConfigs;
-      let invalidMask = env.invalidActionMask();
-      let o = env.state as Observation;
-      for (let t = start; t < configs.steps_per_iteration && t < end; t++) {
-        let { a, v, logp_a } = this.ac.step(this.obsToTensor(o), np.toTensor(invalidMask));
+    const env = this.env;
+    const configs = this.trainConfigs;
+    let invalidMask = env.invalidActionMask();
+    let o = env.state as Observation;
+    for (let t = start; t < configs.steps_per_iteration && t < end; t++) {
+      let { a, v, logp_a } = this.ac.step(this.obsToTensor(o), np.toTensor(invalidMask));
 
-        const action = this.actionToTensor(a) as number;
-        const stepInfo = env.step(action);
-        const next_o = stepInfo.observation;
+      const action = this.actionToTensor(a) as number;
+      const stepInfo = env.step(action);
+      const next_o = stepInfo.observation;
 
-        let r = stepInfo.reward;
-        this.ep_rewards.push(r);
-        const d = stepInfo.done;
-        this.ep_ret += r;
-        this.ep_len += 1;
+      let r = stepInfo.reward;
+      this.ep_rewards.push(r);
+      const d = stepInfo.done;
+      this.ep_ret += r;
+      this.ep_len += 1;
 
-        if (d && stepInfo.info && stepInfo.info['TimeLimit.truncated'] && stepInfo.info['terminal_observation']) {
-          const terminalObs = this.obsToTensor(stepInfo.info['terminal_observation']);
-          const terminalValue = (this.ac.step(terminalObs, np.toTensor(invalidMask)).v.arraySync() as number[][])[0][0];
-          r += configs.gamma * terminalValue;
-        }
-
-        if (env.actionSpace.meta.discrete) {
-          a = a.reshape([-1, 1]);
-        }
-
-        this.buffer.store(
-          np.tensorLikeToNdArray(this.obsToTensor(o)),
-          np.tensorLikeToNdArray(a),
-          r,
-          np.tensorLikeToNdArray(v).get(0, 0),
-          np.tensorLikeToNdArray(logp_a!).get(0, 0),
-          invalidMask.reshape(1, -1)
-        );
-
-        o = next_o;
-        invalidMask = env.invalidActionMask();
-
-        const timeout = this.ep_len === configs.max_ep_len;
-        const terminal = d || timeout;
-        const epoch_ended = t === configs.steps_per_iteration - 1;
-        if (terminal || epoch_ended) {
-          if (epoch_ended && !terminal) {
-            if (this.debug) {
-              console.log(`${configs.name} | Trajectory cut off by epoch at ${this.ep_len} steps`);
-            }
-          }
-          let v = 0;
-          if (timeout || epoch_ended) {
-            v = (this.ac.step(this.obsToTensor(o), np.toTensor(invalidMask)).v.arraySync() as number[][])[0][0];
-          }
-          this.buffer.finishPath(v, d);
-          if (terminal) {
-            // store ep ret and eplen stuff
-            this.ep_rets.push(this.ep_ret);
-          }
-          o = env.reset();
-          invalidMask = env.invalidActionMask();
-          this.ep_ret = 0;
-          this.ep_len = 0;
-        }
+      if (d && stepInfo.info && stepInfo.info['TimeLimit.truncated'] && stepInfo.info['terminal_observation']) {
+        const terminalObs = this.obsToTensor(stepInfo.info['terminal_observation']);
+        const terminalValue = (this.ac.step(terminalObs, np.toTensor(invalidMask)).v.arraySync() as number[][])[0][0];
+        r += configs.gamma * terminalValue;
       }
-    });
+
+      if (env.actionSpace.meta.discrete) {
+        a = a.reshape([-1, 1]);
+      }
+
+      this.buffer.store(
+        np.tensorLikeToNdArray(this.obsToTensor(o)),
+        np.tensorLikeToNdArray(a),
+        r,
+        np.tensorLikeToNdArray(v).get(0, 0),
+        np.tensorLikeToNdArray(logp_a!).get(0, 0),
+        invalidMask.reshape(1, -1)
+      );
+
+      o = next_o;
+      invalidMask = env.invalidActionMask();
+
+      const timeout = this.ep_len === configs.max_ep_len;
+      const terminal = d || timeout;
+      const epoch_ended = t === configs.steps_per_iteration - 1;
+      if (terminal || epoch_ended) {
+        if (epoch_ended && !terminal) {
+          if (this.debug) {
+            console.log(`${configs.name} | Trajectory cut off by epoch at ${this.ep_len} steps`);
+          }
+        }
+        let v = 0;
+        if (timeout || epoch_ended) {
+          v = (this.ac.step(this.obsToTensor(o), np.toTensor(invalidMask)).v.arraySync() as number[][])[0][0];
+        }
+        this.buffer.finishPath(v, d);
+        if (terminal) {
+          // store ep ret and eplen stuff
+          this.ep_rets.push(this.ep_ret);
+        }
+        o = env.reset();
+        invalidMask = env.invalidActionMask();
+        this.ep_ret = 0;
+        this.ep_len = 0;
+      }
+    }
 
     this.rollOutDuration = (Date.now() - rolloutStartTime) / 1000;
   }
@@ -400,133 +398,127 @@ export class PPO<
 
     const compute_loss_pi = (data: PPOBufferComputations): { loss_pi: tf.Tensor; pi_info: pi_info } => {
       let { obs, act, adv, mask } = data;
-      return tf.tidy(() => {
-        const logp_old = data.logp.expandDims(-1);
-        const adv_e = adv.expandDims(-1);
-        const { pi, logp_a } = this.ac.pi.apply(obs, act, mask);
+      const logp_old = data.logp.expandDims(-1);
+      const adv_e = adv.expandDims(-1);
+      const { pi, logp_a } = this.ac.pi.apply(obs, act, mask);
 
-        const ratio = logp_a!.sub(logp_old).exp();
+      const ratio = logp_a!.sub(logp_old).exp();
 
-        const clip_adv = ratio.clipByValue(1 - clip_ratio, 1 + clip_ratio).mul(adv_e);
+      const clip_adv = ratio.clipByValue(1 - clip_ratio, 1 + clip_ratio).mul(adv_e);
 
-        const adv_ratio = ratio.mul(adv_e);
+      const adv_ratio = ratio.mul(adv_e);
 
-        const ratio_and_clip_adv = tf.stack([adv_ratio, clip_adv]);
+      const ratio_and_clip_adv = tf.stack([adv_ratio, clip_adv]);
 
-        const loss_pi = ratio_and_clip_adv.min(0).mean().mul(-1);
+      const loss_pi = ratio_and_clip_adv.min(0).mean().mul(-1);
 
-        // from stablebaseline3
-        const log_ratio = logp_a!.sub(logp_old);
-        const approx_kl = log_ratio.exp().sub(1).sub(log_ratio).mean().arraySync() as number;
+      // from stablebaseline3
+      const log_ratio = logp_a!.sub(logp_old);
+      const approx_kl = log_ratio.exp().sub(1).sub(log_ratio).mean().arraySync() as number;
 
-        const entropy = pi.entropy().mean().arraySync() as number;
-        const clipped = ratio
-          .greater(1 + clip_ratio)
-          .logicalOr(ratio.less(1 - clip_ratio))
-          .mean()
-          .arraySync() as number;
+      const entropy = pi.entropy().mean().arraySync() as number;
+      const clipped = ratio
+        .greater(1 + clip_ratio)
+        .logicalOr(ratio.less(1 - clip_ratio))
+        .mean()
+        .arraySync() as number;
 
-        return {
-          loss_pi,
-          pi_info: {
-            approx_kl,
-            entropy,
-            clip_frac: clipped,
-          },
-        };
-      });
+      return {
+        loss_pi,
+        pi_info: {
+          approx_kl,
+          entropy,
+          clip_frac: clipped,
+        },
+      };
     };
     const compute_loss_vf = (data: PPOBufferComputations) => {
       const { obs, ret } = data;
-      return tf.tidy(() => {
-        const predict = this.ac.v.apply(obs).flatten();
-        return predict.sub(ret).pow(2).mean();
-      });
+      const predict = this.ac.v.apply(obs).flatten();
+      return predict.sub(ret).pow(2).mean();
     };
 
-    return tf.tidy(() => {
-      const data = this.miniBatchData;
-      const indices = this.miniBatchIndices;
-      if (!data || !indices) {
-        throw new Error('Mini batch data or indices not found');
-      }
+    const data = this.miniBatchData;
+    const indices = this.miniBatchIndices;
+    if (!data || !indices) {
+      throw new Error('Mini batch data or indices not found');
+    }
 
-      let kls: number[] = [];
-      let entropy = 0;
-      let clip_frac = 0;
-      let loss_pi_ = 0;
-      let loss_vf_ = 0;
+    let kls: number[] = [];
+    let entropy = 0;
+    let clip_frac = 0;
+    let loss_pi_ = 0;
+    let loss_vf_ = 0;
 
-      let continueTraining = true;
+    let continueTraining = true;
 
-      let batchStartIndex = batch * batch_size;
-      let maxBatch = this.getMaxBatch();
-      if (batch < maxBatch) {
-        const batchData = {
-          obs: data.obs.gather(indices.slice(batchStartIndex, batch_size)),
-          act: data.act.gather(indices.slice(batchStartIndex, batch_size)),
-          adv: data.adv.gather(indices.slice(batchStartIndex, batch_size)),
-          ret: data.ret.gather(indices.slice(batchStartIndex, batch_size)),
-          logp: data.logp.gather(indices.slice(batchStartIndex, batch_size)),
-          mask: data.mask.gather(indices.slice(batchStartIndex, batch_size)),
-        };
-
-        // normalization adv
-        const stats = {
-          mean: batchData.adv.mean(),
-          std: nj.std(batchData.adv.arraySync()),
-        };
-        batchData.adv = batchData.adv.sub(stats.mean).div(stats.std + 1e-8);
-
-        const grads = optimizer.computeGradients(() => {
-          const { loss_pi, pi_info } = compute_loss_pi(batchData);
-          kls.push(pi_info.approx_kl);
-          entropy = pi_info.entropy;
-          clip_frac = pi_info.clip_frac;
-
-          const loss_v = compute_loss_vf(batchData);
-          loss_pi_ = loss_pi.arraySync() as number;
-          loss_vf_ = loss_v.arraySync() as number;
-          return loss_pi.add(loss_v.mul(vf_coef)) as tf.Scalar;
-        });
-        if (kls[kls.length - 1] > 1.5 * target_kl) {
-          if (this.debug) {
-            console.log(
-              `PPO_Train | Early stopping at batch ${batch}/${Math.floor(
-                steps_per_iteration / batch_size
-              )} of optimizing policy due to reaching max kl ${kls[kls.length - 1]} / ${1.5 * target_kl}`
-            );
-          }
-          continueTraining = false;
-        }
-
-        const maxNorm = 0.5;
-        const clippedGrads: tf.NamedTensorMap = {};
-        const totalNorm = tf.norm(tf.stack(Object.values(grads.grads).map((grad) => tf.norm(grad))));
-        const clipCoeff = tf.minimum(tf.scalar(1.0), tf.scalar(maxNorm).div(totalNorm.add(1e-6)));
-        Object.keys(grads.grads).forEach((name) => {
-          clippedGrads[name] = tf.mul(grads.grads[name], clipCoeff);
-        });
-
-        optimizer.applyGradients(clippedGrads);
-        batch++;
-      } else {
-        throw new Error(`batch ${batch} is out of range ${maxBatch}`);
-      }
-
-      this.trainDuration = (Date.now() - updateStartTime) / 1000;
-
-      const metrics = {
-        kl: nj.mean(nj.array(kls)),
-        entropy,
-        clip_frac,
-        continueTraining,
-        trained_epoches: 1,
-        loss_pi: loss_pi_,
-        loss_vf: loss_vf_,
+    let batchStartIndex = batch * batch_size;
+    let maxBatch = this.getMaxBatch();
+    if (batch < maxBatch) {
+      const batchData = {
+        obs: data.obs.gather(indices.slice(batchStartIndex, batch_size)),
+        act: data.act.gather(indices.slice(batchStartIndex, batch_size)),
+        adv: data.adv.gather(indices.slice(batchStartIndex, batch_size)),
+        ret: data.ret.gather(indices.slice(batchStartIndex, batch_size)),
+        logp: data.logp.gather(indices.slice(batchStartIndex, batch_size)),
+        mask: data.mask.gather(indices.slice(batchStartIndex, batch_size)),
       };
 
-      return metrics;
-    });
+      // normalization adv
+      const stats = {
+        mean: batchData.adv.mean(),
+        std: nj.std(batchData.adv.arraySync()),
+      };
+      batchData.adv = batchData.adv.sub(stats.mean).div(stats.std + 1e-8);
+
+      const grads = optimizer.computeGradients(() => {
+        const { loss_pi, pi_info } = compute_loss_pi(batchData);
+        kls.push(pi_info.approx_kl);
+        entropy = pi_info.entropy;
+        clip_frac = pi_info.clip_frac;
+
+        const loss_v = compute_loss_vf(batchData);
+        loss_pi_ = loss_pi.arraySync() as number;
+        loss_vf_ = loss_v.arraySync() as number;
+        return loss_pi.add(loss_v.mul(vf_coef)) as tf.Scalar;
+      });
+      if (kls[kls.length - 1] > 1.5 * target_kl) {
+        if (this.debug) {
+          console.log(
+            `PPO_Train | Early stopping at batch ${batch}/${Math.floor(
+              steps_per_iteration / batch_size
+            )} of optimizing policy due to reaching max kl ${kls[kls.length - 1]} / ${1.5 * target_kl}`
+          );
+        }
+        continueTraining = false;
+      }
+
+      const maxNorm = 0.5;
+      const clippedGrads: tf.NamedTensorMap = {};
+      const totalNorm = tf.norm(tf.stack(Object.values(grads.grads).map((grad) => tf.norm(grad))));
+      const clipCoeff = tf.minimum(tf.scalar(1.0), tf.scalar(maxNorm).div(totalNorm.add(1e-6)));
+      Object.keys(grads.grads).forEach((name) => {
+        clippedGrads[name] = tf.mul(grads.grads[name], clipCoeff);
+      });
+
+      optimizer.applyGradients(clippedGrads);
+      batch++;
+    } else {
+      throw new Error(`batch ${batch} is out of range ${maxBatch}`);
+    }
+
+    this.trainDuration = (Date.now() - updateStartTime) / 1000;
+
+    const metrics = {
+      kl: nj.mean(nj.array(kls)),
+      entropy,
+      clip_frac,
+      continueTraining,
+      trained_epoches: 1,
+      loss_pi: loss_pi_,
+      loss_vf: loss_vf_,
+    };
+
+    return metrics;
   }
 }
