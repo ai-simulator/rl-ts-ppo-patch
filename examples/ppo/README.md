@@ -27,6 +27,8 @@
 - [x] 25 mobile setting, 5000 iterations, fix fps
 - [x] 26 mobile setting, 8000 iterations
 - [x] 27 reward scaling
+- [] 28 reward scaling divide 8
+- [] higher n_epochs
 
 # PPO pendulum tests
 

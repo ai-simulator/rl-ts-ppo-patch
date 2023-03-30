@@ -7,7 +7,7 @@ import { DEFAULT_CLEAR_LINE_GAME_CONFIG, SIMPLE_CONFIG } from '../../src/Environ
 import { expertSet } from '../../src/Environments/examples/Block/model/shape';
 import { TrainMetrics } from '../../src/Algos/ppo';
 
-const RUN = `block-27-mobile-512-32-reward-scaling`;
+const RUN = `block-28-mobile-512-32-reward-scaling`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 

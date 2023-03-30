@@ -309,6 +309,15 @@ export class PPO<
     this.ep_rewards = [];
   }
 
+  public scaleReward(reward) {
+    reward = reward / 8;
+    if (reward <= 1) {
+      return reward;
+    } else {
+      return Math.log10(reward) + 1;
+    }
+  }
+
   public collectRollout(batch: number) {
     const rolloutStartTime = Date.now();
     const start = batch * this.trainConfigs.batch_size;
@@ -329,6 +338,9 @@ export class PPO<
       const d = stepInfo.done;
       this.ep_ret += r;
       this.ep_len += 1;
+
+      // reward scaling
+      r = this.scaleReward(r);
 
       if (d && stepInfo.info && stepInfo.info['TimeLimit.truncated'] && stepInfo.info['terminal_observation']) {
         const terminalObs = this.obsToTensor(stepInfo.info['terminal_observation']);
