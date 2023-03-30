@@ -121,7 +121,7 @@ export class Block extends Environment<Box, ActionSpace, Observation, State, Act
     //   done = true;
     // }
 
-    let reward = valid ? scoreDelta : -1;
+    let reward = valid ? scaleReward(scoreDelta) : -1;
     // console.log('TCL ~ reward:', reward);
 
     this.updateState();
@@ -143,5 +143,13 @@ export class Block extends Environment<Box, ActionSpace, Observation, State, Act
     configs: { fps: number; episode?: number; rewards?: number } = { fps: 60 }
   ): Promise<void> {
     console.log(this.game.getTextOutput());
+  }
+}
+
+function scaleReward(reward) {
+  if (reward <= 1) {
+    return reward;
+  } else {
+    return Math.log10(reward) + 1;
   }
 }
