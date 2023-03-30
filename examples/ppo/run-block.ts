@@ -7,7 +7,7 @@ import { DEFAULT_CLEAR_LINE_GAME_CONFIG, SIMPLE_CONFIG } from '../../src/Environ
 import { expertSet } from '../../src/Environments/examples/Block/model/shape';
 import { TrainMetrics } from '../../src/Algos/ppo';
 
-const RUN = `block-28-mobile-512-32-reward-scaling`;
+const RUN = `block-29-mobile-512-32-n-epochs-10`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
@@ -42,7 +42,7 @@ const main = async () => {
     optimizer: tf.train.adam(3e-4, 0.9, 0.999, 1e-8),
     lam: 0.95,
     steps_per_iteration: 512,
-    n_epochs: 3,
+    n_epochs: 10,
     batch_size: 32,
     vf_coef: 0.5,
     target_kl: 0.02,
