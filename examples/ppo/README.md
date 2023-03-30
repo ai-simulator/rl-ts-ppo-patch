@@ -30,6 +30,7 @@
 - [x] 28 reward scaling divide 8
 - [x] 29 higher n_epochs 10
 - [x] 30 add back conv
+- [] 31 batch size 64
 
 # PPO pendulum tests
 
