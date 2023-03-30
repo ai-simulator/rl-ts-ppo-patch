@@ -28,7 +28,8 @@
 - [x] 26 mobile setting, 8000 iterations
 - [x] 27 reward scaling
 - [x] 28 reward scaling divide 8
-- [] 29 higher n_epochs 10
+- [x] 29 higher n_epochs 10
+- [x] 30 add back conv
 
 # PPO pendulum tests
 
