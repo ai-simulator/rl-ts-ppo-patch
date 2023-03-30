@@ -7,7 +7,7 @@ import { DEFAULT_CLEAR_LINE_GAME_CONFIG, SIMPLE_CONFIG } from '../../src/Environ
 import { expertSet } from '../../src/Environments/examples/Block/model/shape';
 import { TrainMetrics } from '../../src/Algos/ppo';
 
-const RUN = `block-32-mobile-512-32-n-epochs-10-conv`;
+const RUN = `block-33-mobile-2048-64-n-epochs-5-conv`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
@@ -42,7 +42,7 @@ const main = async () => {
     optimizer: tf.train.adam(3e-4, 0.9, 0.999, 1e-8),
     lam: 0.95,
     steps_per_iteration: 2048,
-    n_epochs: 10,
+    n_epochs: 5,
     batch_size: 64,
     vf_coef: 0.5,
     target_kl: 0.02,
@@ -66,7 +66,7 @@ const main = async () => {
     },
   };
   ppo.setupTrain(config);
-  const iterations = 8000;
+  const iterations = 3000;
   for (let i = 0; i < iterations; i++) {
     tf.tidy(() => {
       console.log('iterations:', i);
