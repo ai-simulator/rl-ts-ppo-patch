@@ -7,7 +7,7 @@ import { DEFAULT_CLEAR_LINE_GAME_CONFIG, SIMPLE_CONFIG } from '../../src/Environ
 import { expertSet } from '../../src/Environments/examples/Block/model/shape';
 import { TrainMetrics } from '../../src/Algos/ppo';
 
-const RUN = `block-25-mobile-512-32`;
+const RUN = `block-26-mobile-512-32`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
@@ -66,43 +66,45 @@ const main = async () => {
     },
   };
   ppo.setupTrain(config);
-  const iterations = 5000;
+  const iterations = 8000;
   for (let i = 0; i < iterations; i++) {
-    console.log('iterations:', i);
-    const maxBatch = ppo.getMaxBatch();
-    const startTime = Date.now();
-    let collectBatch = 0;
-    while (collectBatch < maxBatch) {
-      ppo.collectRollout(collectBatch);
-      collectBatch++;
-    }
-    // update actor critic
-    ppo.prepareMiniBatch();
-    let metrics: TrainMetrics = {
-      kl: 0,
-      entropy: 0,
-      clip_frac: 0,
-      trained_epoches: 0,
-      continueTraining: false,
-      loss_pi: 0,
-      loss_vf: 0,
-    };
-    let continueTraining = true;
-    let j = 0;
-    for (; j < ppo.trainConfigs.n_epochs; j++) {
-      if (!continueTraining) {
-        break;
+    tf.tidy(() => {
+      console.log('iterations:', i);
+      const maxBatch = ppo.getMaxBatch();
+      const startTime = Date.now();
+      let collectBatch = 0;
+      while (collectBatch < maxBatch) {
+        ppo.collectRollout(collectBatch);
+        collectBatch++;
       }
-      let batch = 0;
-      while (batch < maxBatch && continueTraining) {
-        metrics = ppo.update(batch);
-        continueTraining = metrics.continueTraining;
-        batch++;
+      // update actor critic
+      ppo.prepareMiniBatch();
+      let metrics: TrainMetrics = {
+        kl: 0,
+        entropy: 0,
+        clip_frac: 0,
+        trained_epoches: 0,
+        continueTraining: false,
+        loss_pi: 0,
+        loss_vf: 0,
+      };
+      let continueTraining = true;
+      let j = 0;
+      for (; j < ppo.trainConfigs.n_epochs; j++) {
+        if (!continueTraining) {
+          break;
+        }
+        let batch = 0;
+        while (batch < maxBatch && continueTraining) {
+          metrics = ppo.update(batch);
+          continueTraining = metrics.continueTraining;
+          batch++;
+        }
       }
-    }
-    // collect metrics
-    metrics.trained_epoches = j;
-    ppo.collectMetrics(startTime, i, metrics);
+      // collect metrics
+      metrics.trained_epoches = j;
+      ppo.collectMetrics(startTime, i, metrics);
+    });
   }
 };
 

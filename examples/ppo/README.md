@@ -25,6 +25,7 @@
 - [x] 23 no conv, 4000 iterations
 - [x] 24 mobile setting, 4000 iterations
 - [x] 25 mobile setting, 5000 iterations, fix fps
+- [x] 26 mobile setting, 8000 iterations
 
 # PPO pendulum tests
 
