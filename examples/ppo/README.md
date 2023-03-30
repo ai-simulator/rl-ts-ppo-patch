@@ -30,7 +30,8 @@
 - [x] 28 reward scaling divide 8
 - [x] 29 higher n_epochs 10
 - [x] 30 add back conv
-- [] 31 batch size 64
+- [x] 31 batch size 64
+- [x] 32 batch size 64, steps per iteration 2048
 
 # PPO pendulum tests
 
