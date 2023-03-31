@@ -35,42 +35,40 @@ describe('Test PPO', () => {
     const iterations = 7;
     let i = 0;
     for (; i < iterations; i++) {
-      tf.tidy(() => {
-        const maxBatch = ppo.getMaxBatch();
-        const startTime = Date.now();
-        let collectBatch = 0;
-        while (collectBatch < maxBatch) {
-          ppo.collectRollout(collectBatch);
-          collectBatch++;
+      const maxBatch = ppo.getMaxBatch();
+      const startTime = Date.now();
+      let collectBatch = 0;
+      while (collectBatch < maxBatch) {
+        ppo.collectRollout(collectBatch);
+        collectBatch++;
+      }
+      // update actor critic
+      ppo.prepareMiniBatch();
+      let metrics: TrainMetrics = {
+        kl: 0,
+        entropy: 0,
+        clip_frac: 0,
+        trained_epoches: 0,
+        continueTraining: false,
+        loss_pi: 0,
+        loss_vf: 0,
+      };
+      let continueTraining = true;
+      let j = 0;
+      for (; j < ppo.trainConfigs.n_epochs; j++) {
+        if (!continueTraining) {
+          break;
         }
-        // update actor critic
-        ppo.prepareMiniBatch();
-        let metrics: TrainMetrics = {
-          kl: 0,
-          entropy: 0,
-          clip_frac: 0,
-          trained_epoches: 0,
-          continueTraining: false,
-          loss_pi: 0,
-          loss_vf: 0,
-        };
-        let continueTraining = true;
-        let j = 0;
-        for (; j < ppo.trainConfigs.n_epochs; j++) {
-          if (!continueTraining) {
-            break;
-          }
-          let batch = 0;
-          while (batch < maxBatch && continueTraining) {
-            metrics = ppo.update(batch);
-            continueTraining = metrics.continueTraining;
-            batch++;
-          }
+        let batch = 0;
+        while (batch < maxBatch && continueTraining) {
+          metrics = ppo.update(batch);
+          continueTraining = metrics.continueTraining;
+          batch++;
         }
-        // collect metrics
-        metrics.trained_epoches = j;
-        ppo.collectMetrics(startTime, i, metrics);
-      });
+      }
+      // collect metrics
+      metrics.trained_epoches = j;
+      ppo.collectMetrics(startTime, i, metrics);
 
       console.log(tf.memory());
     }
