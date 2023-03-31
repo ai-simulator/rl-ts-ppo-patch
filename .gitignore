@@ -22,3 +22,6 @@ saves
 venv/
 logs/
 old logs/
+
+*.cpuprofile
+models/

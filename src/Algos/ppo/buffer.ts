@@ -3,7 +3,6 @@ import nj, { NdArray } from 'numjs';
 import * as np from 'rl-ts/lib/utils/np';
 import * as core from 'rl-ts/lib/Algos/utils/core';
 import { Tensor1D } from '@tensorflow/tfjs';
-import * as ct from 'rl-ts/lib/utils/clusterTools';
 export interface PPOBufferConfigs {
   obsDim: number[];
   actDim: number[];

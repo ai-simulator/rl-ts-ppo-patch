@@ -4,7 +4,7 @@ import { Shape, Space } from '.';
 import * as random from 'rl-ts/lib/utils/random';
 import * as np from 'rl-ts/lib/utils/np';
 import ops from 'ndarray-ops';
-import * as tf from '@tensorflow/tfjs-node';
+import * as tf from '@tensorflow/tfjs';
 import nj from 'numjs';
 
 export class Box extends Space<nj.NdArray<number>> {

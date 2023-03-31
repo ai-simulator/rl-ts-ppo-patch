@@ -1,9 +1,9 @@
 import { expect } from 'chai';
-import { Environments } from '../../src';
+import { Examples } from '../../src/Environments';
 
 describe('Test Simple Grid World', () => {
   it('should run a episode properly', () => {
-    const env = new Environments.Examples.SimpleGridWorld(4, 4, [{ x: 0, y: 3 }], { x: 0, y: 0 });
+    const env = new Examples.SimpleGridWorld(4, 4, [{ x: 0, y: 3 }], { x: 0, y: 0 });
     // eslint-disable-next-line
     const observation = env.reset();
     for (let step = 1; step < 4; step++) {

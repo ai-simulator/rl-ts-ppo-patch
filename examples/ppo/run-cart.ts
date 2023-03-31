@@ -39,7 +39,7 @@ const main = async () => {
       let obs = env.reset();
       let rewards = 0;
       while (true) {
-        const action = ppo.act(obs);
+        const action = ppo.act(obs, env.invalidActionMask());
         const stepInfo = env.step(action);
         rewards += stepInfo.reward;
         if (epochData.iteration > 10) {

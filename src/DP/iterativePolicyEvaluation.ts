@@ -1,4 +1,4 @@
-import { Dynamics, Environment, RepToState, StateToRep } from 'rl-ts/lib/Environments';
+import { Dynamics, Environment, RepToState, StateToRep } from '../Environments';
 import { Space } from 'rl-ts/lib/Spaces';
 
 //TODO: Handle stochastic environments

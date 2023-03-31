@@ -1,8 +1,9 @@
 import { expect } from 'chai';
 import * as RL from '../../src';
+import { Examples } from '../../src/Environments';
 describe('Test Pendulum', () => {
   it('should run', async () => {
-    const env = new RL.Environments.Examples.Pendulum();
+    const env = new Examples.Pendulum();
     env.maxEpisodeSteps = 10;
     let state = env.reset();
     while (true) {

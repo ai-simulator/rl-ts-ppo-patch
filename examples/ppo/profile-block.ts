@@ -7,13 +7,6 @@ import { DEFAULT_CLEAR_LINE_GAME_CONFIG, SIMPLE_CONFIG } from '../../src/Environ
 import { expertSet } from '../../src/Environments/examples/Block/model/shape';
 import { TrainMetrics } from '../../src/Algos/ppo';
 
-const RUN = `block-35-mobile-2048-64-n-epochs-5-noconv`;
-const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
-const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
-
-const modelPath = `./models/${RUN}`;
-const savePath = modelPath;
-
 const game = new Game({
   ...DEFAULT_CLEAR_LINE_GAME_CONFIG,
   ...{
@@ -29,7 +22,7 @@ const main = async () => {
     return new Block({ game });
   };
   const env = makeEnv();
-  const ac = new RL.Models.MLPActorCritic(env.observationSpace, env.actionSpace, [64, 64], 'tanh', false);
+  const ac = new RL.Models.MLPActorCritic(env.observationSpace, env.actionSpace, [32], 'tanh', false);
   ac.print();
   const ppo = new RL.Algos.PPO(makeEnv, ac, {
     actionToTensor: (action: tf.Tensor) => {
@@ -41,32 +34,17 @@ const main = async () => {
   const config = {
     optimizer: tf.train.adam(3e-4, 0.9, 0.999, 1e-8),
     lam: 0.95,
-    steps_per_iteration: 2048,
-    n_epochs: 10,
-    batch_size: 64,
+    steps_per_iteration: 512,
+    n_epochs: 3,
+    batch_size: 32,
     vf_coef: 0.5,
     target_kl: 0.02,
-    savePath,
     iterationCallback(epochData) {
-      summaryWriter.scalar('step_r', epochData.ep_rewards.mean, epochData.t);
-      summaryWriter.scalar('reward', epochData.ep_rets.mean, epochData.t);
-      summaryWriter.scalar('max', epochData.ep_rets.max, epochData.t);
-      summaryWriter.scalar('best_ever', epochData.ep_rets.bestEver, epochData.t);
-      // summaryWriter.scalar('delta_pi_loss', epochData.delta_pi_loss, epochData.t);
-      // summaryWriter.scalar('delta_vf_loss', epochData.delta_vf_loss, epochData.t);
-      summaryWriter.scalar('loss_vf', epochData.loss_vf, epochData.t);
-      summaryWriter.scalar('loss_pi', epochData.loss_pi, epochData.t);
-      summaryWriter.scalar('kl', epochData.kl, epochData.t);
-      summaryWriter.scalar('entropy', epochData.entropy, epochData.t);
-      summaryWriter.scalar('fps', epochData.fps, epochData.t);
-      summaryWriter.scalar('fps_rollout', epochData.fps_rollout, epochData.t);
-      summaryWriter.scalar('fps_train', epochData.fps_train, epochData.t);
-      summaryWriter.scalar('duration_rollout', epochData.duration_rollout, epochData.t);
-      summaryWriter.scalar('duration_train', epochData.duration_train, epochData.t);
+      console.log('TCL ~ epochData:', epochData);
     },
   };
   ppo.setupTrain(config);
-  const iterations = 3000;
+  const iterations = 20;
   for (let i = 0; i < iterations; i++) {
     tf.tidy(() => {
       console.log('iterations:', i);
@@ -105,6 +83,8 @@ const main = async () => {
       metrics.trained_epoches = j;
       ppo.collectMetrics(startTime, i, metrics);
     });
+
+    console.log(tf.memory());
   }
 };
 

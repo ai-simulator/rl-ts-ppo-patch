@@ -32,6 +32,7 @@
 
   },
   "include": ["src/**/*"],
+  "exclude": ["src/Environments/**/*"],
   "ts-node": {
     "require": ["tsconfig-paths/register"]
   }

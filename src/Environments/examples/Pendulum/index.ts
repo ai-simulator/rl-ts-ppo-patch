@@ -124,7 +124,7 @@ export class Pendulum extends Environment<ObservationSpace, ActionSpace, Observa
     configs: { fps: number; episode?: number; rewards?: number } = { fps: 60 }
   ): Promise<void> {
     if (mode === 'web') {
-      if (!this.viewer.isInitialized()) await this.viewer.initialize(path.join(__dirname, '../'), 'pendulum/');
+      // if (!this.viewer.isInitialized()) await this.viewer.initialize(path.join(__dirname, '../'), 'pendulum/');
       const delayMs = 1 / (configs.fps / 1000);
       await this.sleep(delayMs);
       await this.updateViewer(this.state, {

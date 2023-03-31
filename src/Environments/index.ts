@@ -1,7 +1,6 @@
 import { NdArray } from 'numjs';
 import { NotImplementedError } from 'rl-ts/lib/Errors';
 import { Space } from 'rl-ts/lib/Spaces';
-import { Viewer } from './viewer';
 export type RenderModes = 'web' | 'ansi';
 
 export type Dynamics<State, Action, Reward> = (
@@ -42,11 +41,6 @@ export abstract class Environment<
   Action,
   Reward
 > {
-  /**
-   * Construct a new environment. NOTE: it is recommended to define any state related code in the reset()
-   * function to keep the environment episodic. Even if the environment has infinite horizon,
-   * this is still recommended */
-  protected viewer: Viewer<State> = new Viewer();
   constructor(
     /** the name of the environment */
     public name: string
@@ -97,7 +91,7 @@ export abstract class Environment<
    * @param info
    */
   public async updateViewer(state: State, info: any = {}) {
-    await this.viewer.step(state, info);
+    // await this.viewer.step(state, info);
   }
   protected async sleep(ms: number): Promise<void> {
     return new Promise((resolve) => {

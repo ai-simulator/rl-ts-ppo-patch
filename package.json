@@ -1,6 +1,6 @@
 {
   "name": "rl-ts-ppo-patch",
-  "version": "0.0.12",
+  "version": "0.0.26",
   "description": "",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -23,7 +23,9 @@
     "report:html": "nyc report --reporter=html",
     "prettier": "prettier --write ./src ./tests",
     "prettier:check": "prettier -c ./src ./tests",
-    "docs": "typedoc src/index.ts"
+    "docs": "typedoc src/index.ts",
+    "prepublishOnly": "npm run build",
+    "prof": "node --loader ts-node/esm --cpu-prof ./examples/ppo/profile-block.ts"
   },
   "keywords": [
     "Reinforcement Learning",
@@ -74,7 +76,7 @@
     "ndarray": "^1.0.19",
     "ndarray-pack": "^1.2.1",
     "ndarray-unpack": "^1.0.0",
-    "numjs": "github:paradite/numjs#90d2c66",
+    "numjs": "https://github.com/paradite/numjs.git#1c18e3a4d05075ebb0b813240407b4fd8f921937",
     "open": "^8.2.0",
     "pino": "^6.11.3",
     "pino-pretty": "^5.0.2",

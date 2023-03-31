@@ -1,7 +1,7 @@
-import { Environment, RenderModes } from 'rl-ts/lib/Environments';
-import { Box, Discrete } from 'rl-ts/lib/Spaces';
+import { Environment, RenderModes } from '../../../Environments';
+import { Box, Discrete } from '../../../Spaces';
 import nj, { NdArray } from 'numjs';
-import { fromTensorSync, tensorLikeToNdArray, toTensor } from 'rl-ts/lib/utils/np';
+import { fromTensorSync, tensorLikeToNdArray, toTensor } from '../../../utils/np';
 import { Game } from './model/game';
 import * as tf from '@tensorflow/tfjs';
 import { Move } from './model/move';
