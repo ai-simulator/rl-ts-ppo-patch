@@ -7,7 +7,7 @@ import { DEFAULT_CLEAR_LINE_GAME_CONFIG, SIMPLE_CONFIG } from '../../src/Environ
 import { expertSet } from '../../src/Environments/examples/Block/model/shape';
 import { TrainMetrics } from '../../src/Algos/ppo';
 
-const RUN = `block-33-mobile-2048-64-n-epochs-5-conv`;
+const RUN = `block-34-mobile-2048-64-n-epochs-5-noconv`;
 const tfBoardPath = `./logs/${RUN}-${Date.now()}`;
 const summaryWriter = tf.node.summaryFileWriter(tfBoardPath);
 
@@ -29,7 +29,7 @@ const main = async () => {
     return new Block({ game });
   };
   const env = makeEnv();
-  const ac = new RL.Models.MLPActorCritic(env.observationSpace, env.actionSpace, [64, 64], 'tanh', true);
+  const ac = new RL.Models.MLPActorCritic(env.observationSpace, env.actionSpace, [64, 64], 'tanh', false);
   ac.print();
   const ppo = new RL.Algos.PPO(makeEnv, ac, {
     actionToTensor: (action: tf.Tensor) => {
@@ -42,7 +42,7 @@ const main = async () => {
     optimizer: tf.train.adam(3e-4, 0.9, 0.999, 1e-8),
     lam: 0.95,
     steps_per_iteration: 2048,
-    n_epochs: 5,
+    n_epochs: 10,
     batch_size: 64,
     vf_coef: 0.5,
     target_kl: 0.02,
