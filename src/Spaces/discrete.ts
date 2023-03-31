@@ -1,5 +1,5 @@
 import { Space } from '.';
-import { randomRange } from '../../lib/utils/random';
+import { randomRange } from 'rl-ts/lib/utils/random';
 
 /**
  * Primitive discrete space with values from set {0, 1, ..., n - 1}.
