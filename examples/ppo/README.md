@@ -35,7 +35,7 @@
 - [x] 33 batch size 64, steps per iteration 2048 n_epochs: 5
 - [x] 34 batch size 64, steps per iteration 2048 no convs
 - [x] 35 batch size 64, steps per iteration 2048 no convs re-run
-
+- [x] 36 batch size 64, steps per iteration 2048 no convs, 8000 iterations
 
 ```
 __________________________________________________________________________________________

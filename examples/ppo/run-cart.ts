@@ -16,7 +16,15 @@ const main = async () => {
     return new CartPole();
   };
   const env = makeEnv();
-  const ac = new RL.Models.MLPActorCritic(env.observationSpace, env.actionSpace, [64, 64], 'tanh', false);
+  const ac = new RL.Models.MLPActorCritic(
+    env.observationSpace,
+    env.actionSpace,
+    [64, 64],
+    'tanh',
+    false,
+    undefined,
+    undefined
+  );
   ac.print();
   const ppo = new RL.Algos.PPO(makeEnv, ac, {
     actionToTensor: (action: tf.Tensor) => {
