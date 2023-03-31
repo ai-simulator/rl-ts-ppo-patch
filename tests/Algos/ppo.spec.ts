@@ -11,7 +11,15 @@ describe('Test PPO', () => {
       return new CartPole();
     };
     const env = makeEnv();
-    const ac = new RL.Models.MLPActorCritic(env.observationSpace, env.actionSpace, [24, 48], 'tanh', false);
+    const ac = new RL.Models.MLPActorCritic(
+      env.observationSpace,
+      env.actionSpace,
+      [24, 48],
+      'tanh',
+      false,
+      undefined,
+      undefined
+    );
     const ppo = new RL.Algos.PPO(makeEnv, ac, {
       actionToTensor: (action: tf.Tensor) => {
         return action.squeeze();
