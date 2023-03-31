@@ -34,6 +34,7 @@
 - [x] 32 batch size 64, steps per iteration 2048 GOOD
 - [x] 33 batch size 64, steps per iteration 2048 n_epochs: 5
 - [x] 34 batch size 64, steps per iteration 2048 no convs
+- [x] 35 batch size 64, steps per iteration 2048 no convs re-run
 
 # PPO pendulum tests
 
