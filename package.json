@@ -1,6 +1,6 @@
 {
   "name": "rl-ts-ppo-patch",
-  "version": "0.0.30",
+  "version": "0.0.31",
   "description": "",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -77,7 +77,7 @@
     "ndarray": "^1.0.19",
     "ndarray-pack": "^1.2.1",
     "ndarray-unpack": "^1.0.0",
-    "numjs": "https://github.com/paradite/numjs.git#1c18e3a4d05075ebb0b813240407b4fd8f921937",
+    "numjs": "https://github.com/paradite/numjs.git#cbea55bcca4b601de4d8020750d571917f77db7d",
     "open": "^8.2.0",
     "pino": "^6.11.3",
     "pino-pretty": "^5.0.2",
