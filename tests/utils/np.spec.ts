@@ -1,6 +1,15 @@
 import { expect } from 'chai';
 import * as np from '../../src/utils/np';
 import nj from 'numjs';
+import ndarray from 'ndarray';
+
+declare module 'numjs' {
+  interface NdArray<T> {
+    selection: ndarray.NdArray;
+    reshape(...shapes: number[]): NdArray<T>;
+  }
+}
+
 describe('Test numpy (in ts) utils', () => {
   it('should set correctly', () => {
     const a = np.zeros([3, 2, 2]);
@@ -77,5 +86,10 @@ describe('Test numpy (in ts) utils', () => {
     np.unsqueeze(x, 1, false);
     expect(np.arrayEqual(x.selection.stride, ref.selection.stride)).to.equal(true);
     expect(np.arrayEqual(x.selection.shape, ref.selection.shape)).to.equal(true);
+  });
+  it('should packNp and unpackNp correctly', () => {
+    const a = np.packNp([2, 3, 4, 5]);
+    const b = np.unpackNp(a);
+    expect(b).to.eql([2, 3, 4, 5]);
   });
 });

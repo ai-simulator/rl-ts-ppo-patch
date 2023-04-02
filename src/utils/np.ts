@@ -7,10 +7,10 @@ import ops from 'ndarray-ops';
 //@ts-ignore
 import _pack from 'ndarray-pack';
 // eslint-disable-next-line
-//@ts-ignore
-import _unpack from 'ndarray-unpack';
 import nj, { NdArray } from 'numjs';
 import { NotImplementedError } from 'rl-ts/lib/Errors';
+
+import { _unpack } from './_unpack';
 
 export const pack = (arr: Array<any>, dtype?: DataType): NdArray<any> => {
   return nj.array(arr, dtype);

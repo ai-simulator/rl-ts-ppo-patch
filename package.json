@@ -9,6 +9,7 @@
     "pen": "node -r ts-node/register -r tsconfig-paths/register 'examples/ppo/run-pen.ts'",
     "block": "node -r ts-node/register -r tsconfig-paths/register 'examples/ppo/run-block.ts'",
     "test:sh": "sh ./tests/test.sh",
+    "test:np": "mocha -r ts-node/register -r tsconfig-paths/register --recursive 'tests/utils/*.spec.ts'",
     "test:ppo": "mocha -r ts-node/register -r tsconfig-paths/register --recursive 'tests/Algos/ppo.spec.ts'",
     "test:normal": "mocha -r ts-node/register -r tsconfig-paths/register --recursive 'tests/utils/Distributions/normal.spec.ts'",
     "test:categorical": "mocha -r ts-node/register -r tsconfig-paths/register --recursive 'tests/utils/Distributions/categorical.spec.ts'",
