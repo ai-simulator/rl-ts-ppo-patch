@@ -4,7 +4,7 @@
 
 [![npm version](https://badge.fury.io/js/rl-ts-ppo-patch.svg)](https://badge.fury.io/js/rl-ts-ppo-patch)
 
-**rl-ts-ppo-patch** is forked and patched by paradite to fix PPO and dependencies such as `numjs`.
+Note: **rl-ts-ppo-patch** is forked and patched by paradite from [StoneT2000/rl-ts](https://github.com/StoneT2000/rl-ts) to update PPO implementation and fix dependencies such as `numjs`.
 
 RL.ts is a RL gym and library built with **typescript** on top of [TensorFlow.js](https://www.tensorflow.org/js), enabling faster bug-free development, powerful web visuals, and a gateway to developing and comparing reinforcement learning algorithms on the web and / or with node.js in javascript or typescript.
 
